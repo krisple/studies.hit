@@ -15,7 +15,7 @@ namespace ChatClient
 
         public Client()
         {
-            _host = new IPEndPoint(IPAddress.Parse(_hostIp), _hostPort); //define
+            _host = new IPEndPoint(IPAddress.Parse(_hostIp), _hostPort); 
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _name = string.Empty;
         }
@@ -27,7 +27,7 @@ namespace ChatClient
                 byte[] buffer = new byte[1024];
 
                 Console.WriteLine("welcome to chat service");
-                GetClientNameFromUser();
+                _name = GetClientNameFromUser();
 
                 _socket.Connect(_host);
 
@@ -35,8 +35,7 @@ namespace ChatClient
 
                 while (GetMessageFromServer(buffer) == "Name already taken.")
                 {
-                    GetClientNameFromUser();
-                    SendMessageToServer(_name);
+                    SendMessageToServer(GetClientNameFromUser());
                 }
 
                 StartListenerThreadToServerMessages();
@@ -87,15 +86,18 @@ namespace ChatClient
             }
         }
 
-        private void GetClientNameFromUser()
+        private string GetClientNameFromUser()
         {
             Console.WriteLine("Enter your name:");
-            _name = Console.ReadLine();
-            while (string.IsNullOrEmpty(_name))
+            string name = Console.ReadLine();
+
+            while (string.IsNullOrEmpty(name))
             {
                 Console.WriteLine("Invalid name, please enter your name again:");
-                _name = Console.ReadLine();
+                name = Console.ReadLine();
             }
+
+            return name;
         }
 
         private void ReceiveMessages(Socket clientSocket)
