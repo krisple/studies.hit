@@ -12,10 +12,11 @@ namespace ChatClient
 
         private const int _hostPort = 5740;
         private const string _hostIp = "127.0.0.1";
+        private const string _NameAllreadyTakenMessage = "Name already taken.";
 
         public Client()
         {
-            _host = new IPEndPoint(IPAddress.Parse(_hostIp), _hostPort); 
+            _host = new IPEndPoint(IPAddress.Parse(_hostIp), _hostPort);
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _name = string.Empty;
         }
@@ -33,7 +34,7 @@ namespace ChatClient
 
                 SendMessageToServer(_name);
 
-                while (GetMessageFromServer(buffer) == "Name already taken.")
+                while (GetMessageFromServer(buffer) == _NameAllreadyTakenMessage)
                 {
                     SendMessageToServer(GetClientNameFromUser());
                 }
@@ -84,6 +85,15 @@ namespace ChatClient
                 SendMessageToServer(currentMessage);
                 currentMessage = Console.ReadLine();
             }
+
+            ExitChat();
+        }
+
+        private void ExitChat()
+        {
+            _socket.Close();
+            Console.WriteLine("Exiting...");
+            Environment.Exit(0);
         }
 
         private string GetClientNameFromUser()
@@ -91,10 +101,15 @@ namespace ChatClient
             Console.WriteLine("Enter your name:");
             string name = Console.ReadLine();
 
-            while (string.IsNullOrEmpty(name))
+            while (string.IsNullOrEmpty(name.Trim()))
             {
                 Console.WriteLine("Invalid name, please enter your name again:");
                 name = Console.ReadLine();
+            }
+
+            if (name == "exit")
+            {
+                ExitChat();
             }
 
             return name;
@@ -116,7 +131,7 @@ namespace ChatClient
             }
             finally
             {
-                clientSocket.Close();
+                ExitChat();
             }
         }
     }

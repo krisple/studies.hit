@@ -18,7 +18,7 @@ namespace ChatServer
         public Server()
         {
             _clients = new ConcurrentDictionary<string, Socket>();
-            _host = new IPEndPoint(IPAddress.Parse(_hostIp), _hostPort); //define
+            _host = new IPEndPoint(IPAddress.Parse(_hostIp), _hostPort);
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         }
 
@@ -27,7 +27,7 @@ namespace ChatServer
             try
             {
                 _socket.Bind(_host);
-                _socket.Listen(50); // 50?
+                _socket.Listen(50);
 
                 Console.WriteLine($"Server started on port {_hostPort}. Waiting for connections...");
 
@@ -52,21 +52,23 @@ namespace ChatServer
 
         private void HandleClient(Socket clientSocket)
         {
+            string clientName = string.Empty;
             try
             {
                 byte[] buffer = new byte[1024];
 
-                string clientName = GetMessageFromClient(clientSocket, buffer);
+                clientName = GetMessageFromClient(clientSocket, buffer);
 
                 while (IsClientNameAlreadyTaken(clientName))
                 {
                     clientSocket.Send(Encoding.UTF8.GetBytes("Name already taken."));
+                    clientName = GetMessageFromClient(clientSocket, buffer);
                 }
 
                 _clients.TryAdd(clientName, clientSocket);
 
                 Console.WriteLine($"{clientName} connected.");
-                clientSocket.Send(Encoding.UTF8.GetBytes("Welcome to the chat server!"));
+                clientSocket.Send(Encoding.UTF8.GetBytes($"{clientName} welcome to the chat server!"));
 
                 while (true)
                 {
@@ -76,7 +78,7 @@ namespace ChatServer
             }
             catch (SocketException)
             {
-                Console.WriteLine("A client disconnected.");
+                Console.WriteLine($"Client \"{clientName}\" disconnected.");
             }
             finally
             {
@@ -110,7 +112,7 @@ namespace ChatServer
                 }
 
                 string targetName = parts[1];
-                string msg = parts[2];
+                string msg = parts[2].Trim();
 
                 if (_clients.ContainsKey(targetName))
                 {
