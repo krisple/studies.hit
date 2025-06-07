@@ -7,6 +7,13 @@
 #define MAX_NUMBER 100
 #define NUMBER_OF_PROCESSES 5
 
+union semun
+{
+    int val;
+    struct semid_ds *buf;
+    unsigned short *array;
+};
+
 int CreateSemaphoreArray();
 void InitSemaphoresArray(int semid);
 void wait_custom(int semid, int sem_num);
@@ -55,6 +62,8 @@ int main()
         wait(NULL);
     }
 
+    semctl(semid, 0, IPC_RMID);
+
     return 0;
 }
 
@@ -72,9 +81,12 @@ int CreateSemaphoreArray()
 
 void InitSemaphoresArray(int semid)
 {
+    union semun sem_arg;
+
     for (int i = 0; i < NUMBER_OF_PROCESSES; ++i)
     {
-        if (semctl(semid, i, SETVAL, NUMBER_OF_PROCESSES - 1 - i) == -1)
+        sem_arg.val = NUMBER_OF_PROCESSES - 1 - i;
+        if (semctl(semid, i, SETVAL, sem_arg) == -1)
         {
             perror("semctl failed");
             exit(1);
