@@ -1,0 +1,4 @@
+Your public key is your address wallet ,free shareable 
+ 040f6d3ac17c2f865c0783cc47b753032a17db5af6bb9cde06f6b254c80ff34ead373b15bae1429f9899be2f0fd620da31b3aa18cc94ad4d243f3429db8b419253
+Your private key keep it in secret, to sign up the transactions
+ 153dc82883a481f161f2a40073d996bb12ca180f5f8ffc6262e44fb7164ca770
