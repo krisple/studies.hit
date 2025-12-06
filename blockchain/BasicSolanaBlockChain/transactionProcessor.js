@@ -2,13 +2,10 @@ const Transaction = require("./transaction")
 
 class TransactionProcessor {
     constructor(feesConfig) {
-        this.baseFee = 0
-        this.tipFee = 0
-        this.coinbaseReward = 0
-
-        this.baseFee = feesConfig.baseFee
-        this.tipFee = feesConfig.tipFee
-        this.coinbaseReward = feesConfig.coinbaseReward
+        const { baseFee = 0, tipFee = 0, coinbaseReward = 0 } = feesConfig || {}
+        this.baseFee = baseFee
+        this.tipFee = tipFee
+        this.coinbaseReward = coinbaseReward
     }
 
     processBatchOfRawTransactions(rawTransactions, startIndex, maxUserTransactionsPerBlock, minerId, balancesState, ledger) {
@@ -18,7 +15,8 @@ class TransactionProcessor {
         let index = startIndex
 
         while (index < rawTransactions.length && acceptedCount < maxUserTransactionsPerBlock) {
-            const rawTransaction = rawTransactions[index]
+            const rawIndex = index
+            const rawTransaction = rawTransactions[rawIndex]
             index += 1
 
             const from = rawTransaction.from
@@ -42,7 +40,7 @@ class TransactionProcessor {
 
             ledger.recordBurn(this.baseFee)
 
-            const transaction = new Transaction(from, to, amount)
+            const transaction = new Transaction(from, to, amount, rawIndex)
             processedTransactions.push(transaction)
             acceptedCount += 1
         }
@@ -51,7 +49,8 @@ class TransactionProcessor {
             balancesState.credit(minerId, this.coinbaseReward)
             ledger.recordMined(this.coinbaseReward)
 
-            const coinbaseTransaction = new Transaction(null, minerId, this.coinbaseReward)
+            const coinbaseNonce = `coinbase-${startIndex}-${minerId}`
+            const coinbaseTransaction = new Transaction(null, minerId, this.coinbaseReward, coinbaseNonce)
             processedTransactions.push(coinbaseTransaction)
         }
 

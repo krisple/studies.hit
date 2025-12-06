@@ -3,16 +3,13 @@ const SHA256 = require("crypto-js/sha256")
 
 class MerkleWrapper {
     constructor(transactions) {
-        this.leaves = []
-        this.tree = null
-        this.root = ""
-
-        this.leaves = (transactions || []).map((transaction) =>
+        const leaves = (transactions || []).map((transaction) =>
             Buffer.from(transaction.calculateHash(), "hex")
         )
         const hashFn = (data) => Buffer.from(SHA256(data).toString(), "hex")
-        this.tree = new MerkleTree(this.leaves, hashFn, { sortPairs: true })
+        this.tree = new MerkleTree(leaves, hashFn, { sortPairs: true })
         const root = this.tree.getRoot()
+        this.leaves = leaves
         this.root = root ? root.toString("hex") : ""
     }
 

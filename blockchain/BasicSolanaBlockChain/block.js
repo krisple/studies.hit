@@ -4,25 +4,20 @@ const BloomWrapper = require("./bloomWrapper")
 
 class Block {
     constructor(transactions, previousHash = "", minerId = null) {
-        this.previousHash = ""
-        this.transactions = []
-        this.minerId = null
-        this.hash = ""
-        this.merkle = null
-        this.merkleRoot = ""
-        this.bloom = null
-
         this.previousHash = previousHash
         this.transactions = transactions
         this.minerId = minerId
         this.hash = ""
+        this.merkle = null
+        this.merkleRoot = ""
+        this.bloom = null
 
         this._buildMerkle()
         this._buildBloom()
     }
 
     computeHash(seed) {
-        let hashValue = seed
+        let hashValue = SHA256(String(seed) + String(this.previousHash)).toString()
         for (const transaction of this.transactions) {
             const transactionHash = transaction.calculateHash()
             hashValue = SHA256(hashValue + transactionHash).toString()
