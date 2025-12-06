@@ -34,6 +34,26 @@ class Block {
         this.bloom = new BloomWrapper(this.transactions)
     }
 
+    hasValidateTransaction() {
+        for (const tx of this.transactions) {
+            if (typeof tx.isValid === "function" && !tx.isValid()) {
+                return false
+            }
+        }
+        return true
+    }
+
+    isValid(seed, previousBlock = null) {
+        if (!this.hasValidateTransaction()) return false
+        if (previousBlock) {
+            if (this.previousHash !== previousBlock.hash) return false
+        } else if (this.previousHash !== "") {
+            return false
+        }
+        const recomputed = this.computeHash(seed)
+        return recomputed === this.hash
+    }
+
     getMerkleProof(transaction) {
         return this.merkle.getProof(transaction)
     }

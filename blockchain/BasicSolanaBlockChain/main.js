@@ -16,14 +16,21 @@ function loadRawTransactions() {
     return data
 }
 
-function buildSignedTransactions(rawTransactions, walletMap) {
+function buildSignedTransactions(rawTransactions, walletMap, baseFee, tipFee) {
     return rawTransactions.map((raw, index) => {
         const fromWallet = raw.from ? walletMap[raw.from] : null
         const toWallet = raw.to ? walletMap[raw.to] : null
         const fromAddress = fromWallet ? fromWallet.publicKey : null
         const toAddress = toWallet ? toWallet.publicKey : null
 
-        const transaction = new Transaction(fromAddress, toAddress, raw.amount, index)
+        const transaction = new Transaction(
+            fromAddress,
+            toAddress,
+            raw.amount,
+            index,
+            baseFee,
+            tipFee
+        )
 
         if (fromWallet) {
             try {
@@ -35,6 +42,35 @@ function buildSignedTransactions(rawTransactions, walletMap) {
 
         return transaction
     })
+}
+
+function mineAllTransactions(blockchain, miners, scheduler, transactions, maxUserTransactionsPerBlock) {
+    let transactionIndex = 0
+    let blockIndex = 1
+
+    while (transactionIndex < transactions.length) {
+        const minerId = scheduler.getMinerIdForBlock(blockIndex)
+        const miner = miners[minerId]
+        if (!miner) {
+            throw new Error(`No miner instance for id ${minerId}`)
+        }
+
+        console.log(`\n=== Building block #${blockIndex}, miner: ${minerId} ===`)
+
+        const { block, skippedCount, nextIndex } = miner.mineBlock(
+            transactions,
+            transactionIndex,
+            maxUserTransactionsPerBlock
+        )
+
+        console.log(
+            `Block #${blockIndex} built with ${block.transactions.length} transactions ` +
+            `(including coinbase). Skipped: ${skippedCount}`
+        )
+
+        transactionIndex = nextIndex
+        blockIndex += 1
+    }
 }
 
 function main() {
@@ -60,19 +96,24 @@ function main() {
     for (const name of minerIds) {
         const wallet = walletMap[name]
         const minerId = wallet.publicKey
-        miners[minerId] = new Miner(wallet, {
-            baseFee: config.baseFee,
-            tipFee: config.tipFee,
-            coinbaseReward: config.coinbaseReward
-        })
+        miners[minerId] = new Miner(
+            wallet,
+            config.coinbaseReward,
+            blockchain
+        )
     }
 
     const scheduler = new MinerScheduler(config.minerIds)
 
     const rawTransactions = loadRawTransactions()
-    const transactions = buildSignedTransactions(rawTransactions, walletMap)
+    const transactions = buildSignedTransactions(
+        rawTransactions,
+        walletMap,
+        config.baseFee,
+        config.tipFee
+    )
 
-    blockchain.buildFromRawTransactions(transactions, miners, scheduler)
+    mineAllTransactions(blockchain, miners, scheduler, transactions, config.transactionsPerBlockNoCoinbase)
 
     blockchain.printSummary()
 
@@ -108,7 +149,7 @@ function demoProofSearch(blockchain) {
         `Looking for transaction: ${targetTransaction.fromAddress} -> ${targetTransaction.toAddress} amount ${targetTransaction.amount}`
     )
 
-    const proofObj = blockchain.findTransactionProof(targetTransaction)
+    const proofObj = blockchain.GetTransactionProof(targetTransaction)
     if (!proofObj) {
         console.log("Proof not found via bloom + merkle search")
         return

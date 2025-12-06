@@ -1,10 +1,7 @@
 const Transaction = require("./transaction")
 
 class TransactionProcessor {
-    constructor(feesConfig) {
-        const { baseFee = 0, tipFee = 0, coinbaseReward = 0 } = feesConfig || {}
-        this.baseFee = baseFee
-        this.tipFee = tipFee
+    constructor(coinbaseReward) {
         this.coinbaseReward = coinbaseReward
     }
 
@@ -13,6 +10,7 @@ class TransactionProcessor {
         let skippedCount = 0
         let acceptedCount = 0
         let index = startIndex
+        let totalTips = 0
 
         while (index < rawTransactions.length && acceptedCount < maxUserTransactionsPerBlock) {
             const currentIndex = index
@@ -24,8 +22,8 @@ class TransactionProcessor {
                 continue
             }
 
-            const { fromAddress, toAddress, amount } = normalized
-            const totalCost = amount + this.baseFee + this.tipFee
+            const { fromAddress, toAddress, amount, baseFee, tipFee } = normalized
+            const totalCost = amount + baseFee + tipFee
 
             if (!balancesState.canDebit(fromAddress, totalCost)) {
                 console.log(
@@ -42,18 +40,25 @@ class TransactionProcessor {
                 continue
             }
 
-            this._applyTransaction(normalized, totalCost, minerId, balancesState, ledger)
+            this._applyTransaction(normalized, totalCost, baseFee, balancesState, ledger)
+            totalTips += tipFee
 
             processedTransactions.push(normalized)
             acceptedCount += 1
         }
 
-        if (this.coinbaseReward > 0) {
-            balancesState.credit(minerId, this.coinbaseReward)
-            ledger.recordMined(this.coinbaseReward)
+        const rewardAmount = this.coinbaseReward + totalTips
+
+        if (rewardAmount > 0) {
+            balancesState.credit(minerId, rewardAmount)
+            if (this.coinbaseReward > 0) {
+                ledger.recordMined(this.coinbaseReward)
+            }
 
             const coinbaseNonce = `coinbase-${startIndex}-${minerId}`
-            const coinbaseTransaction = new Transaction(null, minerId, this.coinbaseReward, coinbaseNonce)
+            const coinbaseTransaction = new Transaction(null, minerId, rewardAmount, coinbaseNonce)
+            coinbaseTransaction.baseFee = 0
+            coinbaseTransaction.tipFee = 0
             processedTransactions.push(coinbaseTransaction)
         }
 
@@ -70,14 +75,15 @@ class TransactionProcessor {
         const fromAddress = raw.fromAddress ?? raw.from ?? null
         const toAddress = raw.toAddress ?? raw.to ?? null
         const amount = raw.amount ?? 0
-        return new Transaction(fromAddress, toAddress, amount, nonce)
+        const baseFee = raw.baseFee ?? 0
+        const tipFee = raw.tipFee ?? 0
+        return new Transaction(fromAddress, toAddress, amount, nonce, baseFee, tipFee)
     }
 
-    _applyTransaction(transaction, totalCost, minerId, balancesState, ledger) {
+    _applyTransaction(transaction, totalCost, baseFee, balancesState, ledger) {
         balancesState.debit(transaction.fromAddress, totalCost)
         balancesState.credit(transaction.toAddress, transaction.amount)
-        balancesState.credit(minerId, this.tipFee)
-        ledger.recordBurn(this.baseFee)
+        ledger.recordBurn(baseFee)
     }
 }
 

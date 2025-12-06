@@ -4,11 +4,13 @@ const EC = require("elliptic").ec
 const ec = new EC("secp256k1")
 
 class Transaction {
-    constructor(fromAddress, toAddress, amount, nonce = 0) {
+    constructor(fromAddress, toAddress, amount, nonce = 0, baseFee = 0, tipFee = 0) {
         this.fromAddress = fromAddress
         this.toAddress = toAddress
         this.amount = amount
         this.nonce = nonce
+        this.baseFee = baseFee
+        this.tipFee = tipFee
         this.signature = null
     }
 

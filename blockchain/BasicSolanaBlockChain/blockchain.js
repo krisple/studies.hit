@@ -21,11 +21,15 @@ class Blockchain {
     }
 
     addBlock(block) {
+        const previousBlock = this.getLatestBlock()
+        if (!block.isValid(this.networkHash, previousBlock)) {
+            throw new Error("Attempted to add invalid block to blockchain")
+        }
         this.blocks.push(block)
         this.networkHash = block.hash
     }
 
-    findTransactionProof(targetTransaction) {
+    GetTransactionProof(targetTransaction) {
         if (!targetTransaction || typeof targetTransaction.calculateHash !== "function") {
             return null
         }
@@ -55,46 +59,6 @@ class Blockchain {
         return null
     }
 
-    buildFromRawTransactions(rawTransactions, minersMap, scheduler) {
-        const maxUserTransactionsPerBlock = this.config.transactionsPerBlockNoCoinbase
-        let transactionIndex = 0
-        let blockIndex = 1
-
-        while (transactionIndex < rawTransactions.length) {
-            const minerId = scheduler.getMinerIdForBlock(blockIndex)
-            const miner = minersMap[minerId]
-            if (!miner) {
-                throw new Error(`No miner instance for id ${minerId}`)
-            }
-
-            console.log(`\n=== Building block #${blockIndex}, miner: ${minerId} ===`)
-
-            const networkSeedHash = this.getNetworkHash()
-            const latestBlock = this.getLatestBlock()
-            const previousHash = latestBlock ? latestBlock.hash : ""
-
-            const { block, skippedCount, nextIndex } =
-                miner.buildBlock(
-                    rawTransactions,
-                    transactionIndex,
-                    maxUserTransactionsPerBlock,
-                    this.balancesState,
-                    this.ledger,
-                    networkSeedHash,
-                    previousHash
-                )
-
-            console.log(
-                `Block #${blockIndex} built with ${block.transactions.length} transactions ` +
-                `(including coinbase). Skipped: ${skippedCount}`
-            )
-
-            this.addBlock(block)
-            transactionIndex = nextIndex
-            blockIndex += 1
-        }
-    }
-
     isValid(initialNetworkHash) {
         const seed0 = initialNetworkHash || this.config.initialNetworkHash || "42"
         let seed = seed0
@@ -102,25 +66,20 @@ class Blockchain {
 
         for (let i = 0; i < this.blocks.length; i++) {
             const block = this.blocks[i]
-
-            if (i === 0) {
-                if (block.previousHash !== previousHash) {
-                    console.log(`Invalid previousHash at genesis block`)
-                    return false
-                }
-            } else {
-                if (block.previousHash !== previousHash) {
-                    console.log(`Invalid previousHash at block index ${i}`)
-                    return false
-                }
+            if (!block.hasValidateTransaction()) {
+                console.log(`Invalid transactions at block index ${i}`)
+                return false
             }
-
             const recomputed = block.computeHash(seed)
+            const expectedPrev = i === 0 ? "" : this.blocks[i - 1].hash
+            if (block.previousHash !== expectedPrev) {
+                console.log(`Invalid previousHash at block index ${i}`)
+                return false
+            }
             if (recomputed !== block.hash) {
                 console.log(`Invalid hash at block index ${i}`)
                 return false
             }
-
             seed = block.hash
             previousHash = block.hash
         }
