@@ -22,7 +22,6 @@ class Miner {
             )
 
         const block = new Block(
-            Date.now(),
             transactions,
             previousBlockHash,
             this.id

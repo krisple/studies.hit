@@ -3,22 +3,10 @@ const Ledger = require("./ledger")
 
 class Blockchain {
     constructor(config) {
-        this.config = null
-        this.blocks = []
-        this.networkHash = ""
-        this.balancesState = null
-        this.ledger = null
-
         this.config = config
-
         this.blocks = []
         this.networkHash = config.initialNetworkHash || "42"
-
-        this.balancesState = new BalancesState(
-            config.wallets,
-            config.initialBalance
-        )
-
+        this.balancesState = new BalancesState(config.wallets, config.initialBalance)
         const initialTotalCoins = config.initialBalance * config.wallets.length
         this.ledger = new Ledger(initialTotalCoins)
     }

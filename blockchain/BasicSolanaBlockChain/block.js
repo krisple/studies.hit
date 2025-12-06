@@ -3,9 +3,8 @@ const MerkleWrapper = require("./merkleWrapper")
 const BloomWrapper = require("./bloomWrapper")
 
 class Block {
-    constructor(timestamp, transactions, previousHash = "", minerId = null) {
+    constructor(transactions, previousHash = "", minerId = null) {
         this.previousHash = ""
-        this.timestamp = 0
         this.transactions = []
         this.minerId = null
         this.hash = ""
@@ -14,7 +13,6 @@ class Block {
         this.bloom = null
 
         this.previousHash = previousHash
-        this.timestamp = timestamp
         this.transactions = transactions
         this.minerId = minerId
         this.hash = ""
