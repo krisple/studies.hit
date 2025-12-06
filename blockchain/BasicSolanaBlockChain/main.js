@@ -1,27 +1,53 @@
-// main4.js
+const fs = require("fs")
+const path = require("path")
+
+const Miner = require("./miner")
+const MinerScheduler = require("./minerScheduler")
 const Blockchain = require("./blockchain")
-const Transaction = require("./transaction")
-const EC = require("elliptic").ec
 
-const ec = new EC("secp256k1")
+function loadRawTransactions() {
+    const filePath = path.join(__dirname, "Solanatransactions.json")
+    const raw = fs.readFileSync(filePath, "utf8")
+    const data = JSON.parse(raw)
 
-const walletKey = ec.keyFromPrivate(
-    "153dc82883a481f161f2a40073d996bb12ca180f5f8ffc6262e44fb7164ca770"
-)
-const walletAddress = walletKey.getPublic("hex")
+    console.log(`Loaded ${data.length} raw transactions from JSON`)
+    return data
+}
 
-const courseChain = new Blockchain()
+function main() {
+    const config = {
+        initialBalance: 100,
+        wallets: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
+        minerIds: ["A", "B", "C", "D", "E"],
+        txPerBlockNoCoinbase: 49,
+        baseFee: 2,
+        tipFee: 3,
+        coinbaseReward: 60,
+        initialNetworkHash: "42"
+    }
 
-const tx1 = new Transaction(walletAddress, "address2", 100)
-tx1.signTransaction(walletKey)
-courseChain.addTransaction(tx1)
-courseChain.minePendingTransactions(walletAddress)
+    const blockchain = new Blockchain(config)
 
-const tx2 = new Transaction(walletAddress, "address3", 20)
-tx2.signTransaction(walletKey)
-courseChain.addTransaction(tx2)
-courseChain.minePendingTransactions(walletAddress)
+    const miners = {}
+    for (const id of config.minerIds) {
+        miners[id] = new Miner(id, {
+            baseFee: config.baseFee,
+            tipFee: config.tipFee,
+            coinbaseReward: config.coinbaseReward
+        })
+    }
 
-console.log(`\nBalance of the demo wallet is: ${courseChain.getBalanceOfAddress(walletAddress)}\n`)
+    const scheduler = new MinerScheduler(config.minerIds)
 
-console.log("Is chain valid?", courseChain.isChainValid())
+    const rawTransactions = loadRawTransactions()
+
+    blockchain.buildFromRawTransactions(rawTransactions, miners, scheduler)
+
+    blockchain.printSummary()
+
+    console.log("\n===== BLOCKCHAIN VALIDATION =====")
+    const isValid = blockchain.isValid(config.initialNetworkHash)
+    console.log("Is chain valid?", isValid)
+}
+
+main()
