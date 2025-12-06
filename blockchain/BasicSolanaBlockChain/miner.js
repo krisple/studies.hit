@@ -2,8 +2,9 @@ const Block = require("./block")
 const TransactionProcessor = require("./transactionProcessor")
 
 class Miner {
-    constructor(id, feesConfig) {
-        this.id = id
+    constructor(wallet, feesConfig) {
+        this.wallet = wallet
+        this.id = wallet.publicKey
         this.processor = new TransactionProcessor(feesConfig)
     }
 

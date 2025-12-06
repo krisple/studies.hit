@@ -15,33 +15,36 @@ class TransactionProcessor {
         let index = startIndex
 
         while (index < rawTransactions.length && acceptedCount < maxUserTransactionsPerBlock) {
-            const rawIndex = index
-            const rawTransaction = rawTransactions[rawIndex]
+            const currentIndex = index
+            const normalized = this._normalizeTransaction(rawTransactions[currentIndex], currentIndex)
             index += 1
 
-            const from = rawTransaction.from
-            const to = rawTransaction.to
-            const amount = rawTransaction.amount
+            if (!normalized) {
+                skippedCount += 1
+                continue
+            }
 
+            const { fromAddress, toAddress, amount } = normalized
             const totalCost = amount + this.baseFee + this.tipFee
 
-            if (!balancesState.canDebit(from, totalCost)) {
+            if (!balancesState.canDebit(fromAddress, totalCost)) {
                 console.log(
-                    `Skipping transaction ${from} -> ${to} amount ${amount}: ` +
-                    `insufficient funds (balance=${balancesState.getBalance(from)}, required=${totalCost})`
+                    `Skipping transaction ${fromAddress} -> ${toAddress} amount ${amount}: ` +
+                    `insufficient funds (balance=${balancesState.getBalance(fromAddress)}, required=${totalCost})`
                 )
                 skippedCount += 1
                 continue
             }
 
-            balancesState.debit(from, totalCost)
-            balancesState.credit(to, amount)
-            balancesState.credit(minerId, this.tipFee)
+            if (typeof normalized.isValid === "function" && !normalized.isValid()) {
+                console.log(`Skipping transaction ${fromAddress} -> ${toAddress} amount ${amount}: invalid signature`)
+                skippedCount += 1
+                continue
+            }
 
-            ledger.recordBurn(this.baseFee)
+            this._applyTransaction(normalized, totalCost, minerId, balancesState, ledger)
 
-            const transaction = new Transaction(from, to, amount, rawIndex)
-            processedTransactions.push(transaction)
+            processedTransactions.push(normalized)
             acceptedCount += 1
         }
 
@@ -59,6 +62,22 @@ class TransactionProcessor {
             skippedCount,
             nextIndex: index
         }
+    }
+
+    _normalizeTransaction(raw, nonce) {
+        if (raw instanceof Transaction) return raw
+        if (!raw) return null
+        const fromAddress = raw.fromAddress ?? raw.from ?? null
+        const toAddress = raw.toAddress ?? raw.to ?? null
+        const amount = raw.amount ?? 0
+        return new Transaction(fromAddress, toAddress, amount, nonce)
+    }
+
+    _applyTransaction(transaction, totalCost, minerId, balancesState, ledger) {
+        balancesState.debit(transaction.fromAddress, totalCost)
+        balancesState.credit(transaction.toAddress, transaction.amount)
+        balancesState.credit(minerId, this.tipFee)
+        ledger.recordBurn(this.baseFee)
     }
 }
 

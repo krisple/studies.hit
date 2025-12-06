@@ -4,6 +4,8 @@ const path = require("path")
 const Miner = require("./miner")
 const MinerScheduler = require("./minerScheduler")
 const Blockchain = require("./blockchain")
+const Transaction = require("./transaction")
+const Wallet = require("./wallet")
 
 function loadRawTransactions() {
     const filePath = path.join(__dirname, "Solanatransactions.json")
@@ -14,11 +16,37 @@ function loadRawTransactions() {
     return data
 }
 
+function buildSignedTransactions(rawTransactions, walletMap) {
+    return rawTransactions.map((raw, index) => {
+        const fromWallet = raw.from ? walletMap[raw.from] : null
+        const toWallet = raw.to ? walletMap[raw.to] : null
+        const fromAddress = fromWallet ? fromWallet.publicKey : null
+        const toAddress = toWallet ? toWallet.publicKey : null
+
+        const transaction = new Transaction(fromAddress, toAddress, raw.amount, index)
+
+        if (fromWallet) {
+            try {
+                transaction.signTransaction(fromWallet.keyPair)
+            } catch (err) {
+                console.log(`Failed to sign transaction from ${raw.from}: ${err.message}`)
+            }
+        }
+
+        return transaction
+    })
+}
+
 function main() {
+    const walletIds = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+    const wallets = walletIds.map((id) => new Wallet(id))
+    const walletMap = Object.fromEntries(wallets.map((w) => [w.name, w]))
+    const minerIds = ["A", "B", "C", "D", "E"]
+
     const config = {
         initialBalance: 100,
-        wallets: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
-        minerIds: ["A", "B", "C", "D", "E"],
+        wallets: wallets.map((w) => w.publicKey),
+        minerIds: minerIds.map((id) => walletMap[id].publicKey),
         transactionsPerBlockNoCoinbase: 49,
         baseFee: 2,
         tipFee: 3,
@@ -29,8 +57,10 @@ function main() {
     const blockchain = new Blockchain(config)
 
     const miners = {}
-    for (const id of config.minerIds) {
-        miners[id] = new Miner(id, {
+    for (const name of minerIds) {
+        const wallet = walletMap[name]
+        const minerId = wallet.publicKey
+        miners[minerId] = new Miner(wallet, {
             baseFee: config.baseFee,
             tipFee: config.tipFee,
             coinbaseReward: config.coinbaseReward
@@ -40,8 +70,9 @@ function main() {
     const scheduler = new MinerScheduler(config.minerIds)
 
     const rawTransactions = loadRawTransactions()
+    const transactions = buildSignedTransactions(rawTransactions, walletMap)
 
-    blockchain.buildFromRawTransactions(rawTransactions, miners, scheduler)
+    blockchain.buildFromRawTransactions(transactions, miners, scheduler)
 
     blockchain.printSummary()
 
