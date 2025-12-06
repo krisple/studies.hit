@@ -2,6 +2,10 @@ const SHA256 = require("crypto-js/sha256")
 
 class Transaction {
     constructor(fromAddress, toAddress, amount) {
+        this.fromAddress = null
+        this.toAddress = null
+        this.amount = 0
+
         this.fromAddress = fromAddress
         this.toAddress = toAddress
         this.amount = amount

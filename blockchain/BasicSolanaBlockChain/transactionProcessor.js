@@ -2,6 +2,10 @@ const Transaction = require("./transaction")
 
 class TransactionProcessor {
     constructor(feesConfig) {
+        this.baseFee = 0
+        this.tipFee = 0
+        this.coinbaseReward = 0
+
         this.baseFee = feesConfig.baseFee
         this.tipFee = feesConfig.tipFee
         this.coinbaseReward = feesConfig.coinbaseReward

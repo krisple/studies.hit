@@ -3,6 +3,12 @@ const Ledger = require("./ledger")
 
 class Blockchain {
     constructor(config) {
+        this.config = null
+        this.blocks = []
+        this.networkHash = ""
+        this.balancesState = null
+        this.ledger = null
+
         this.config = config
 
         this.blocks = []
@@ -31,8 +37,38 @@ class Blockchain {
         this.networkHash = block.hash
     }
 
+    findTransactionProof(targetTransaction) {
+        if (!targetTransaction || typeof targetTransaction.calculateHash !== "function") {
+            return null
+        }
+        const targetHash = targetTransaction.calculateHash()
+
+        for (let i = 0; i < this.blocks.length; i++) {
+            const block = this.blocks[i]
+            if (!block.bloom || !block.merkle) continue
+            if (!block.bloom.mightContain(targetTransaction)) continue
+
+            const match = block.findTransactionByHash(targetHash)
+            if (!match) continue
+
+            const proof = block.getMerkleProof(match.transaction)
+            const valid = block.verifyProofForHash(targetHash, proof, block.merkleRoot)
+            if (!valid) continue
+
+            return {
+                blockIndex: i + 1, // 1-based for readability
+                blockHash: block.hash,
+                merkleRoot: block.merkleRoot,
+                transactionHash: targetHash,
+                proof
+            }
+        }
+
+        return null
+    }
+
     buildFromRawTransactions(rawTransactions, minersMap, scheduler) {
-        const maxUserTransactionsPerBlock = this.config.txPerBlockNoCoinbase
+        const maxUserTransactionsPerBlock = this.config.transactionsPerBlockNoCoinbase
         let transactionIndex = 0
         let blockIndex = 1
 

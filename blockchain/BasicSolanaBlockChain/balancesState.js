@@ -1,6 +1,7 @@
 class BalancesState {
     constructor(walletIds, initialBalance) {
         this.balances = {}
+
         for (const id of walletIds) {
             this.balances[id] = initialBalance
         }

@@ -1,5 +1,6 @@
 class MinerScheduler {
     constructor(minerIds) {
+        this.minerIds = []
         this.minerIds = minerIds || []
     }
 
