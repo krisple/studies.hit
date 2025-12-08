@@ -7,7 +7,6 @@ class TransactionProcessor {
 
     processBatchOfRawTransactions(rawTransactions, startIndex, maxUserTransactionsPerBlock, minerId, balancesState, ledger) {
         const processedTransactions = []
-        let skippedCount = 0
         let acceptedCount = 0
         let index = startIndex
         let totalTips = 0
@@ -17,28 +16,10 @@ class TransactionProcessor {
             const normalized = this._normalizeTransaction(rawTransactions[currentIndex], currentIndex)
             index += 1
 
-            if (!normalized) {
-                skippedCount += 1
-                continue
-            }
+            if (!normalized) continue
 
             const { fromAddress, toAddress, amount, baseFee, tipFee } = normalized
             const totalCost = amount + baseFee + tipFee
-
-            if (!balancesState.canDebit(fromAddress, totalCost)) {
-                console.log(
-                    `Skipping transaction ${fromAddress} -> ${toAddress} amount ${amount}: ` +
-                    `insufficient funds (balance=${balancesState.getBalance(fromAddress)}, required=${totalCost})`
-                )
-                skippedCount += 1
-                continue
-            }
-
-            if (typeof normalized.isValid === "function" && !normalized.isValid()) {
-                console.log(`Skipping transaction ${fromAddress} -> ${toAddress} amount ${amount}: invalid signature`)
-                skippedCount += 1
-                continue
-            }
 
             this._applyTransaction(normalized, totalCost, baseFee, balancesState, ledger)
             totalTips += tipFee
@@ -64,7 +45,6 @@ class TransactionProcessor {
 
         return {
             transactions: processedTransactions,
-            skippedCount,
             nextIndex: index
         }
     }

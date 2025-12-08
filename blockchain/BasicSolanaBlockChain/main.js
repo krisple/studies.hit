@@ -57,7 +57,7 @@ function mineAllTransactions(blockchain, miners, scheduler, transactions, maxUse
 
         console.log(`\n=== Building block #${blockIndex}, miner: ${minerId} ===`)
 
-        const { block, skippedCount, nextIndex } = miner.mineBlock(
+        const { block, nextIndex } = miner.mineBlock(
             transactions,
             transactionIndex,
             maxUserTransactionsPerBlock
@@ -65,7 +65,7 @@ function mineAllTransactions(blockchain, miners, scheduler, transactions, maxUse
 
         console.log(
             `Block #${blockIndex} built with ${block.transactions.length} transactions ` +
-            `(including coinbase). Skipped: ${skippedCount}`
+            `(including coinbase).`
         )
 
         transactionIndex = nextIndex

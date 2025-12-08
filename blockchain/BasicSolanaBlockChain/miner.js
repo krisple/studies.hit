@@ -18,7 +18,7 @@ class Miner {
         const latestBlock = this.blockchain.getLatestBlock()
         const previousHash = latestBlock ? latestBlock.hash : ""
 
-        const { block, skippedCount, nextIndex } =
+        const { block, nextIndex } =
             this.buildBlock(
                 rawTransactions,
                 startIndex,
@@ -30,11 +30,11 @@ class Miner {
             )
 
         this.blockchain.addBlock(block)
-        return { block, skippedCount, nextIndex }
+        return { block, nextIndex }
     }
 
     buildBlock(rawTransactions, startIndex, maxUserTransactionsPerBlock, balancesState, ledger, networkSeedHash, previousBlockHash) {
-        const { transactions, skippedCount, nextIndex } =
+        const { transactions, nextIndex } =
             this.processor.processBatchOfRawTransactions(
                 rawTransactions,
                 startIndex,
@@ -52,7 +52,7 @@ class Miner {
 
         block.hash = block.computeHash(networkSeedHash)
 
-        return { block, skippedCount, nextIndex }
+        return { block, nextIndex }
     }
 }
 

@@ -19,18 +19,9 @@ class BalancesState {
         return this.balances[address]
     }
 
-    canDebit(address, amount) {
-        this.ensureWallet(address)
-        return this.balances[address] >= amount
-    }
-
     debit(address, amount) {
         this.ensureWallet(address)
-        if (this.balances[address] < amount) {
-            return false
-        }
         this.balances[address] -= amount
-        return true
     }
 
     credit(address, amount) {
