@@ -5,47 +5,26 @@ class TransactionProcessor {
         this.coinbaseReward = coinbaseReward
     }
 
-    processBatchOfRawTransactions(rawTransactions, startIndex, maxUserTransactionsPerBlock, minerId, balancesState, ledger) {
+    processTransactions(rawTransactions, minerId, balancesState, ledger) {
         const processedTransactions = []
-        let acceptedCount = 0
-        let index = startIndex
         let totalTips = 0
 
-        while (index < rawTransactions.length && acceptedCount < maxUserTransactionsPerBlock) {
-            const currentIndex = index
-            const normalized = this._normalizeTransaction(rawTransactions[currentIndex], currentIndex)
-            index += 1
-
+        for (let i = 0; i < rawTransactions.length; i++) {
+            const normalized = this._normalizeTransaction(rawTransactions[i], i)
             if (!normalized) continue
 
             const { fromAddress, toAddress, amount, baseFee, tipFee } = normalized
             const totalCost = amount + baseFee + tipFee
 
             this._applyTransaction(normalized, totalCost, baseFee, balancesState, ledger)
-            totalTips += tipFee
 
             processedTransactions.push(normalized)
-            acceptedCount += 1
-        }
-
-        const rewardAmount = this.coinbaseReward + totalTips
-
-        if (rewardAmount > 0) {
-            balancesState.credit(minerId, rewardAmount)
-            if (this.coinbaseReward > 0) {
-                ledger.recordMined(this.coinbaseReward)
-            }
-
-            const coinbaseNonce = `coinbase-${startIndex}-${minerId}`
-            const coinbaseTransaction = new Transaction(null, minerId, rewardAmount, coinbaseNonce)
-            coinbaseTransaction.baseFee = 0
-            coinbaseTransaction.tipFee = 0
-            processedTransactions.push(coinbaseTransaction)
+            totalTips += tipFee
         }
 
         return {
             transactions: processedTransactions,
-            nextIndex: index
+            totalTips
         }
     }
 
@@ -61,6 +40,12 @@ class TransactionProcessor {
     }
 
     _applyTransaction(transaction, totalCost, baseFee, balancesState, ledger) {
+        if (transaction.fromAddress === null || transaction.fromAddress === undefined) {
+            balancesState.credit(transaction.toAddress, transaction.amount)
+            ledger.recordMined(transaction.amount)
+            return
+        }
+
         balancesState.debit(transaction.fromAddress, totalCost)
         balancesState.credit(transaction.toAddress, transaction.amount)
         ledger.recordBurn(baseFee)

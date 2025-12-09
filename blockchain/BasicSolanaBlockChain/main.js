@@ -16,63 +16,6 @@ function loadRawTransactions() {
     return data
 }
 
-function buildSignedTransactions(rawTransactions, walletMap, baseFee, tipFee) {
-    return rawTransactions.map((raw, index) => {
-        const fromWallet = raw.from ? walletMap[raw.from] : null
-        const toWallet = raw.to ? walletMap[raw.to] : null
-        const fromAddress = fromWallet ? fromWallet.publicKey : null
-        const toAddress = toWallet ? toWallet.publicKey : null
-
-        const transaction = new Transaction(
-            fromAddress,
-            toAddress,
-            raw.amount,
-            index,
-            baseFee,
-            tipFee
-        )
-
-        if (fromWallet) {
-            try {
-                transaction.signTransaction(fromWallet.keyPair)
-            } catch (err) {
-                console.log(`Failed to sign transaction from ${raw.from}: ${err.message}`)
-            }
-        }
-
-        return transaction
-    })
-}
-
-function mineAllTransactions(blockchain, miners, scheduler, transactions, maxUserTransactionsPerBlock) {
-    let transactionIndex = 0
-    let blockIndex = 1
-
-    while (transactionIndex < transactions.length) {
-        const minerId = scheduler.getMinerIdForBlock(blockIndex)
-        const miner = miners[minerId]
-        if (!miner) {
-            throw new Error(`No miner instance for id ${minerId}`)
-        }
-
-        console.log(`\n=== Building block #${blockIndex}, miner: ${minerId} ===`)
-
-        const { block, nextIndex } = miner.mineBlock(
-            transactions,
-            transactionIndex,
-            maxUserTransactionsPerBlock
-        )
-
-        console.log(
-            `Block #${blockIndex} built with ${block.transactions.length} transactions ` +
-            `(including coinbase).`
-        )
-
-        transactionIndex = nextIndex
-        blockIndex += 1
-    }
-}
-
 function main() {
     const walletIds = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
     const wallets = walletIds.map((id) => new Wallet(id))
@@ -83,7 +26,7 @@ function main() {
         initialBalance: 100,
         wallets: wallets.map((w) => w.publicKey),
         minerIds: minerIds.map((id) => walletMap[id].publicKey),
-        transactionsPerBlockNoCoinbase: 49,
+        transactionsPerBlock: 50,
         baseFee: 2,
         tipFee: 3,
         coinbaseReward: 60,
@@ -103,17 +46,18 @@ function main() {
         )
     }
 
-    const scheduler = new MinerScheduler(config.minerIds)
+    const scheduler = new MinerScheduler(config.minerIds, config.coinbaseReward)
 
     const rawTransactions = loadRawTransactions()
-    const transactions = buildSignedTransactions(
+
+    scheduler.startMinersLoop(
+        miners,
         rawTransactions,
         walletMap,
         config.baseFee,
-        config.tipFee
+        config.tipFee,
+        config.transactionsPerBlock
     )
-
-    mineAllTransactions(blockchain, miners, scheduler, transactions, config.transactionsPerBlockNoCoinbase)
 
     blockchain.printSummary()
 

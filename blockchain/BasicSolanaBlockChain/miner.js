@@ -1,15 +1,17 @@
 const Block = require("./block")
+const Transaction = require("./transaction")
 const TransactionProcessor = require("./transactionProcessor")
 
 class Miner {
     constructor(wallet, coinbaseReward, blockchain) {
         this.wallet = wallet
         this.id = wallet.publicKey
-        this.processor = new TransactionProcessor(coinbaseReward)
+        this.processor = new TransactionProcessor({ coinbaseReward })
+        this.coinbaseReward = coinbaseReward
         this.blockchain = blockchain
     }
 
-    mineBlock(rawTransactions, startIndex, maxUserTransactionsPerBlock) {
+    mineBlock(transactionsBatch) {
         if (!this.blockchain) {
             throw new Error("Miner requires blockchain instance to build blocks")
         }
@@ -18,11 +20,9 @@ class Miner {
         const latestBlock = this.blockchain.getLatestBlock()
         const previousHash = latestBlock ? latestBlock.hash : ""
 
-        const { block, nextIndex } =
+        const { block, totalTips } =
             this.buildBlock(
-                rawTransactions,
-                startIndex,
-                maxUserTransactionsPerBlock,
+                transactionsBatch,
                 this.blockchain.balancesState,
                 this.blockchain.ledger,
                 networkSeedHash,
@@ -30,15 +30,13 @@ class Miner {
             )
 
         this.blockchain.addBlock(block)
-        return { block, nextIndex }
+        return { block, totalTips }
     }
 
-    buildBlock(rawTransactions, startIndex, maxUserTransactionsPerBlock, balancesState, ledger, networkSeedHash, previousBlockHash) {
-        const { transactions, nextIndex } =
-            this.processor.processBatchOfRawTransactions(
+    buildBlock(rawTransactions, balancesState, ledger, networkSeedHash, previousBlockHash) {
+        const { transactions, totalTips } =
+            this.processor.processTransactions(
                 rawTransactions,
-                startIndex,
-                maxUserTransactionsPerBlock,
                 this.id,
                 balancesState,
                 ledger
@@ -52,7 +50,7 @@ class Miner {
 
         block.hash = block.computeHash(networkSeedHash)
 
-        return { block, nextIndex }
+        return { block, totalTips }
     }
 }
 
