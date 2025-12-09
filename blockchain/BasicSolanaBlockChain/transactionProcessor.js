@@ -5,7 +5,7 @@ class TransactionProcessor {
         this.coinbaseReward = coinbaseReward
     }
 
-    processTransactions(rawTransactions, minerId, balancesState, ledger) {
+    processTransactions(rawTransactions, balancesState, ledger) {
         const processedTransactions = []
         let totalTips = 0
 
