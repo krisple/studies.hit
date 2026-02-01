@@ -48,3 +48,45 @@ publish/
 ## Ignore local settings
 appsettings.Development.json
 appsettings.Local.json
+
+############################
+# Node.js / Hardhat
+############################
+node_modules/
+cache/
+coverage/
+
+############################
+# Hardhat artifacts
+############################
+artifacts/
+
+############################
+# Frontend (React / Vite / Next)
+############################
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.next/
+
+###################
+
+**/.DS_Store
+
+############################
+# Node.js / Hardhat extras
+############################
+.env
+.env.*
+
+# TypeChain output
+**/typechain
+**/typechain-types
+
+# Hardhat Ignition deployments
+**/ignition/deployments/
+
+# Coverage single file
+coverage.json
+
+
