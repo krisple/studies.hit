@@ -1,62 +1,61 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 
-describe("SongNFT", function () {
-  async function deploy() {
-    const [deployer, buyer] = await ethers.getSigners();
+describe("SongNFT", function ()
+{
+  async function deploy()
+  {
+    const [deployer, alice, bob] = await ethers.getSigners();
+
     const SongNFT = await ethers.getContractFactory("SongNFT");
     const c = await SongNFT.deploy();
     await c.waitForDeployment();
-    return { c, deployer, buyer };
+
+    return { c, deployer, alice, bob };
   }
 
-  it("deploys with correct name and symbol", async function () {
+  it("deploys with correct name and symbol", async function ()
+  {
     const { c } = await deploy();
     expect(await c.name()).to.equal("KinyanSong");
     expect(await c.symbol()).to.equal("KNYSONG");
   });
 
-  it("registerSong mints NFT, stores mappings, and sets tokenURI", async function () {
+  it("registerSong mints NFT and stores metadata", async function ()
+  {
     const { c, deployer } = await deploy();
 
     const songHash = ethers.keccak256(ethers.toUtf8Bytes("song one"));
     const uri = "ipfs://song-one";
 
-    const tx = await c.registerSong(songHash, uri);
-    await tx.wait();
+    await (await c.registerSong(songHash, uri)).wait();
 
-    // tokenId should be 1
     expect(await c.ownerOf(1)).to.equal(deployer.address);
-
-    // mapping: hash -> tokenId
     expect(await c.getTokenIdBySongHash(songHash)).to.equal(1n);
 
-    // creator + timestamp
     expect(await c.originalCreatorByTokenId(1)).to.equal(deployer.address);
     expect(await c.registeredAtByTokenId(1)).to.be.gt(0n);
 
-    // metadata
     expect(await c.tokenURI(1)).to.equal(uri);
   });
 
-  it("prevents duplicate registration (reverts) and does not advance nextTokenId", async function () {
+  it("prevents duplicate registration and does not advance nextTokenId", async function ()
+  {
     const { c } = await deploy();
 
     const songHash = ethers.keccak256(ethers.toUtf8Bytes("same song"));
     const uri = "ipfs://same";
 
-    // first ok
     await (await c.registerSong(songHash, uri)).wait();
     expect(await c.nextTokenId()).to.equal(2n);
 
-    // second should revert
     await expect(c.registerSong(songHash, uri)).to.be.reverted;
-
-    // ensure rollback: still next token is 2
     expect(await c.nextTokenId()).to.equal(2n);
   });
 
-  it("reverts on zero hash", async function () {
+  it("reverts on zero hash", async function ()
+  {
     const { c } = await deploy();
 
     const zeroHash =
@@ -65,7 +64,8 @@ describe("SongNFT", function () {
     await expect(c.registerSong(zeroHash, "ipfs://bad")).to.be.reverted;
   });
 
-  it("emits SongRegistered event with correct fields", async function () {
+  it("emits SongRegistered with correct fields", async function ()
+  {
     const { c, deployer } = await deploy();
 
     const songHash = ethers.keccak256(ethers.toUtf8Bytes("event song"));
@@ -75,7 +75,33 @@ describe("SongNFT", function () {
       .to.emit(c, "SongRegistered")
       .withArgs(deployer.address, 1n, songHash, anyValue, uri);
   });
-});
 
-// helper for matching any uint (timestamp) in event args
-const anyValue = (value) => value !== null;
+  it("setMarketplace is onlyOwner and one-time", async function ()
+  {
+    const { c, deployer, alice } = await deploy();
+
+    const m = alice.address;
+
+    await expect(c.connect(alice).setMarketplace(m)).to.be.reverted;
+
+    await expect(c.connect(deployer).setMarketplace(m))
+      .to.emit(c, "MarketplaceSet")
+      .withArgs(m);
+
+    await expect(c.connect(deployer).setMarketplace(m)).to.be.reverted;
+  });
+
+  it("direct transfers revert after marketplace is set", async function ()
+  {
+    const { c, deployer, alice, bob } = await deploy();
+
+    const songHash = ethers.keccak256(ethers.toUtf8Bytes("t1"));
+    await (await c.connect(alice).registerSong(songHash, "ipfs://t1")).wait();
+
+    await (await c.connect(deployer).setMarketplace(bob.address)).wait();
+
+    await expect(
+      c.connect(alice).safeTransferFrom(alice.address, bob.address, 1n)
+    ).to.be.revertedWithCustomError(c, "TransfersOnlyViaMarketplace");
+  });
+});
