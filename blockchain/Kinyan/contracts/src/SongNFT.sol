@@ -2,107 +2,168 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "../interfaces/IKinyanTradableNFT.sol";
+
 
 /// @title SongNFT (Kinyan)
-/// @notice Registers songs by hash and mints an ERC-721 NFT as a proof of registration/ownership.
-contract SongNFT is ERC721URIStorage {
-    // =========================
-    // Errors
-    // =========================
+/// @notice ERC721 that registers assets by hash and mints NFTs. Ownership transfers are restricted to Kinyan Marketplace.
+contract SongNFT is ERC721URIStorage, Ownable, IKinyanTradableNFT
+{
+    // ===== Errors =====
     error InvalidSongHash();
     error SongAlreadyRegistered(bytes32 songHash);
 
-    // =========================
-    // Constants
-    // =========================
-    /// @dev Mapping default value is 0. We treat tokenId=0 as "not registered".
+    error InvalidMarketplaceAddress();
+    error MarketplaceAlreadySet();
+    error TransfersOnlyViaMarketplace();
+
+    // ===== Constants =====
     uint256 private constant NOT_REGISTERED = 0;
 
-    // =========================
-    // State
-    // =========================
-    /// @dev We start token IDs from 1 so that 0 can represent "not registered".
+    // ===== State =====
+    address public marketplace;
+
     uint256 private _nextTokenId = 1;
 
-    /// @notice Returns the tokenId that was minted for a given song hash (0 means "not registered").
     mapping(bytes32 => uint256) public tokenIdBySongHash;
-
-    /// @notice Returns the original creator (first registrar) of a given tokenId.
     mapping(uint256 => address) public originalCreatorByTokenId;
-
-    /// @notice Returns the registration timestamp (block.timestamp) of a given tokenId.
     mapping(uint256 => uint256) public registeredAtByTokenId;
+    mapping(uint256 => OwnershipRecord[]) private _ownershipHistory;
 
-    // =========================
-    // Events
-    // =========================
-    /// @notice Emitted when a new song hash is registered and an NFT is minted.
-    event SongRegistered(
-        address indexed creator,
-        uint256 indexed tokenId,
-        bytes32 indexed songHash,
-        uint256 registeredAt,
-        string tokenURI
-    );
+    // ===== Events =====
+    event MarketplaceSet(address indexed marketplace);
 
-    // =========================
-    // Constructor
-    // =========================
-    /// @notice Creates the SongNFT collection contract.
-    constructor() ERC721("KinyanSong", "KNYSONG") {}
+    event SongRegistered(address indexed creator, uint256 indexed tokenId,
+                         bytes32 indexed songHash, uint256 registeredAt, string tokenURI);
 
-    // =========================
-    // Core logic
-    // =========================
-    /// @notice Registers a new song (by hash) and mints an NFT to the caller.
-    /// @dev Reverts if the hash is zero or already registered.
-    /// @param songHash Hash of the song bytes computed off-chain (e.g., SHA-256/keccak256 output as bytes32).
-    /// @param tokenURI Metadata URI for this song NFT (e.g., ipfs://... or https://...).
-    /// @return tokenId The newly minted tokenId.
-    function registerSong(bytes32 songHash, string calldata tokenURI)
-        external
-        returns (uint256 tokenId)
+    event OwnershipRecorded(uint256 indexed tokenId, address indexed owner, uint256 timestamp);
+
+    // ===== Constructor =====
+    constructor() ERC721("KinyanSong", "KNYSONG") Ownable(msg.sender) {}
+
+    // ===== Admin =====
+    /// @notice Sets the Marketplace contract address (one-time).
+    function setMarketplace(address _marketplace) external onlyOwner 
     {
-        _validateSongHash(songHash);
+        _validateMarketplaceAddress(_marketplace);
+        _requireMarketplaceNotSet();
+        marketplace = _marketplace;
+        emit MarketplaceSet(_marketplace);
+    }
+
+    // ===== Core =====
+    /// @notice Registers an asset by hash and mints an NFT to the caller.
+    function registerSong(bytes32 songHash, string calldata tokenURI) external returns (uint256 tokenId) 
+    {
+        _validateNewSongHash(songHash);
 
         tokenId = _nextTokenId++;
 
-        _mintSongNFT(msg.sender, tokenId, tokenURI);
+        _mintWithMetadata(msg.sender, tokenId, tokenURI);
 
-        _persistRegistration(songHash, tokenId);
+        _persistRegistration(songHash, tokenId, msg.sender);
 
         emit SongRegistered(msg.sender, tokenId, songHash, block.timestamp, tokenURI);
     }
 
-    function _validateSongHash(bytes32 songHash) internal view {
-        if (songHash == bytes32(0)) revert InvalidSongHash();
-
-        if (tokenIdBySongHash[songHash] != NOT_REGISTERED) {
-            revert SongAlreadyRegistered(songHash);
-        }
+    // ===== Views =====
+    function getTokenIdBySongHash(bytes32 songHash) external view returns (uint256)
+    {
+        return tokenIdBySongHash[songHash];
     }
 
-    function _mintSongNFT(address to, uint256 tokenId, string calldata tokenURI) internal {
+    function nextTokenId() external view returns (uint256) 
+    {
+        return _nextTokenId;
+    }
+
+    function ownershipHistoryLength(uint256 tokenId) external view returns (uint256) 
+    {
+        return _ownershipHistory[tokenId].length;
+    }
+
+    /// @notice Returns full on-chain ownership history for tokenId.
+    /// @dev Intended for off-chain reads (UI). Large histories may be heavy to return.
+    function getOwnershipHistory(uint256 tokenId) external view returns (OwnershipRecord[] memory) 
+    {
+        OwnershipRecord[] storage storedHistory = _ownershipHistory[tokenId];
+        uint256 n = storedHistory.length;
+
+        OwnershipRecord[] memory history = new OwnershipRecord[](n);
+        for (uint256 i = 0; i < n; i++) {
+            history[i] = storedHistory[i];
+        }
+
+        return history;
+    }
+
+    // ===== Internal: validations =====
+    function _validateNewSongHash(bytes32 songHash) internal view 
+    {
+        if (songHash == bytes32(0)) revert InvalidSongHash();
+        if (tokenIdBySongHash[songHash] != NOT_REGISTERED) revert SongAlreadyRegistered(songHash);
+    }
+
+    function _validateMarketplaceAddress(address _marketplace) internal pure 
+    {
+        if (_marketplace == address(0)) revert InvalidMarketplaceAddress();
+    }
+
+    function _requireMarketplaceNotSet() internal view 
+    {
+        if (marketplace != address(0)) revert MarketplaceAlreadySet();
+    }
+
+    // ===== Internal: registration pipeline =====
+    function _mintWithMetadata(address to, uint256 tokenId, string calldata tokenURI) internal 
+    {
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, tokenURI);
     }
 
-    function _persistRegistration(bytes32 songHash, uint256 tokenId) internal {
+    function _persistRegistration(bytes32 songHash, uint256 tokenId, address creator) internal 
+    {
         tokenIdBySongHash[songHash] = tokenId;
-        originalCreatorByTokenId[tokenId] = msg.sender;
+        originalCreatorByTokenId[tokenId] = creator;
         registeredAtByTokenId[tokenId] = block.timestamp;
     }
 
-    // =========================
-    // Views (helpers)
-    // =========================
-    /// @notice Getter for tokenId by song hash (0 means "not registered").
-    function getTokenIdBySongHash(bytes32 songHash) external view returns (uint256) {
-        return tokenIdBySongHash[songHash];
+    // ===== Internal: transfer restriction + history (OpenZeppelin v5 hook) =====
+    /// @dev Called by OZ during mint/transfer/burn. We enforce transfer policy and record ownership history.
+    function _update(address to, uint256 tokenId, address auth) internal override returns (address from) 
+    {
+        from = _ownerOf(tokenId);
+
+        _enforceMarketplaceOnlyTransfers(from, to);
+
+        from = super._update(to, tokenId, auth);
+
+        _recordOwnershipIfNeeded(tokenId, to);
     }
 
-    /// @notice Returns the next tokenId that will be minted.
-    function nextTokenId() external view returns (uint256) {
-        return _nextTokenId;
+    function _enforceMarketplaceOnlyTransfers(address from, address to) internal view
+    {
+        if (from != address(0) && to != address(0)) 
+        {
+            if (msg.sender != marketplace) revert TransfersOnlyViaMarketplace();
+        }
+    }
+
+    function _recordOwnershipIfNeeded(uint256 tokenId, address to) internal 
+    {
+        if (to == address(0)) return;
+
+        _ownershipHistory[tokenId].push(OwnershipRecord({owner: to, timestamp: block.timestamp}));
+
+        emit OwnershipRecorded(tokenId, to, block.timestamp);
+    }
+
+    	
+    // ===== ERC165: declare support for IKinyanTradableNFT =====
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721URIStorage, IERC165) returns (bool)
+    {
+        return interfaceId == type(IKinyanTradableNFT).interfaceId || super.supportsInterface(interfaceId);
     }
 }
