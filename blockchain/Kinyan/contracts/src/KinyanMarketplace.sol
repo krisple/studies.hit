@@ -43,11 +43,34 @@ contract KinyanMarketplace is ReentrancyGuard
         uint256 timestamp;
     }
 
+    struct OfferKey
+    {
+        address nft;
+        uint256 tokenId;
+    }
+
+    struct OfferView
+    {
+        address nft;
+        uint256 tokenId;
+        address seller;
+        uint256 price;
+        uint256 createdAt;
+    }
+
     // ===== State =====
     IERC20 public immutable kny;
 
     mapping(address => mapping(uint256 => SaleOffer)) public saleOffers;
     mapping(address => mapping(uint256 => Trade[])) private _tradeHistory;
+
+    // Active offers (global)
+    OfferKey[] private _activeOfferKeys;
+    mapping(bytes32 => uint256) private _activeIndexPlus1; // keyHash -> index+1
+
+    // Active offers per seller
+    mapping(address => OfferKey[]) private _sellerOfferKeys;
+    mapping(address => mapping(bytes32 => uint256)) private _sellerIndexPlus1; // seller -> keyHash -> index+1
 
     // ===== Events =====
     event OfferCreated(address indexed nft, uint256 indexed tokenId,
@@ -86,6 +109,8 @@ contract KinyanMarketplace is ReentrancyGuard
         saleOffers[nft][tokenId] = SaleOffer({seller: msg.sender, price: price,
                                              createdAt: block.timestamp});
 
+        _indexOffer(nft, tokenId, msg.sender);
+
         emit OfferCreated(nft, tokenId, msg.sender, price, block.timestamp);
     }
 
@@ -94,6 +119,8 @@ contract KinyanMarketplace is ReentrancyGuard
         SaleOffer memory offer = _getOfferOrRevert(nft, tokenId);
 
         _requireAddressEquals(offer.seller, msg.sender);
+
+        _deindexOffer(nft, tokenId, offer.seller);
 
         delete saleOffers[nft][tokenId];
 
@@ -128,6 +155,8 @@ contract KinyanMarketplace is ReentrancyGuard
         address creator = nftContract.originalCreatorByTokenId(tokenId);
         uint256 royalty = (offer.price * ROYALTY_BPS) / BPS_DENOMINATOR;
         uint256 sellerAmount = offer.price - royalty;
+
+        _deindexOffer(nft, tokenId, offer.seller);
 
         delete saleOffers[nft][tokenId];
 
@@ -174,6 +203,41 @@ contract KinyanMarketplace is ReentrancyGuard
         return trades;
     }
 
+    function getActiveOffers() external view returns (OfferView[] memory)
+    {
+        uint256 n = _activeOfferKeys.length;
+        OfferView[] memory out = new OfferView[](n);
+
+        for (uint256 i = 0; i < n; i++)
+        {
+            OfferKey memory k = _activeOfferKeys[i];
+            SaleOffer memory offer = saleOffers[k.nft][k.tokenId];
+
+            out[i] = OfferView({nft: k.nft, tokenId: k.tokenId, seller: offer.seller,
+                                price: offer.price, createdAt: offer.createdAt});
+        }
+
+        return out;
+    }
+
+    function getOffersBySeller(address seller) external view returns (OfferView[] memory)
+    {
+        OfferKey[] storage keys = _sellerOfferKeys[seller];
+        uint256 n = keys.length;
+        OfferView[] memory out = new OfferView[](n);
+
+        for (uint256 i = 0; i < n; i++)
+        {
+            OfferKey memory k = keys[i];
+            SaleOffer memory offer = saleOffers[k.nft][k.tokenId];
+
+            out[i] = OfferView({nft: k.nft, tokenId: k.tokenId, seller: offer.seller,
+                                price: offer.price, createdAt: offer.createdAt});
+        }
+
+        return out;
+    }
+
     // ===== Internal =====
     function _getOfferOrRevert(address nft, uint256 tokenId) internal view returns (SaleOffer memory offer)
     {
@@ -215,6 +279,79 @@ contract KinyanMarketplace is ReentrancyGuard
         if (IKinyanTradableNFT(nft).marketplace() != address(this))
         {
             revert NFTMarketplaceMismatch();
+        }
+    }
+
+    function _offerKeyHash(address nft, uint256 tokenId) internal pure returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(nft, tokenId));
+    }
+
+    function _indexOffer(address nft, uint256 tokenId, address seller) internal
+    {
+        bytes32 h = _offerKeyHash(nft, tokenId);
+
+        if (_activeIndexPlus1[h] == 0)
+        {
+            _activeOfferKeys.push(OfferKey({nft: nft, tokenId: tokenId}));
+            _activeIndexPlus1[h] = _activeOfferKeys.length; // index+1
+        }
+
+        if (_sellerIndexPlus1[seller][h] == 0)
+        {
+            _sellerOfferKeys[seller].push(OfferKey({nft: nft, tokenId: tokenId}));
+            _sellerIndexPlus1[seller][h] = _sellerOfferKeys[seller].length; // index+1
+        }
+    }
+
+    function _swapPopOfferKey(OfferKey[] storage arr, uint256 idx) internal returns (OfferKey memory movedKey, bool moved)
+    {
+        uint256 last = arr.length - 1;
+
+        if (idx != last)
+        {
+            movedKey = arr[last];
+            arr[idx] = movedKey;
+            moved = true;
+        }
+
+        arr.pop();
+    }
+
+    function _deindexOffer(address nft, uint256 tokenId, address seller) internal
+    {
+        bytes32 h = _offerKeyHash(nft, tokenId);
+
+        uint256 idxPlus1 = _activeIndexPlus1[h];
+        if (idxPlus1 != 0)
+        {
+            uint256 idx = idxPlus1 - 1;
+
+            (OfferKey memory movedKey, bool moved) = _swapPopOfferKey(_activeOfferKeys, idx);
+
+            if (moved)
+            {
+                bytes32 movedHash = _offerKeyHash(movedKey.nft, movedKey.tokenId);
+                _activeIndexPlus1[movedHash] = idx + 1;
+            }
+
+            delete _activeIndexPlus1[h];
+        }
+
+        uint256 sIdxPlus1 = _sellerIndexPlus1[seller][h];
+        if (sIdxPlus1 != 0)
+        {
+            uint256 sIdx = sIdxPlus1 - 1;
+
+            (OfferKey memory movedKey2, bool moved2) = _swapPopOfferKey(_sellerOfferKeys[seller], sIdx);
+
+            if (moved2)
+            {
+                bytes32 movedHash2 = _offerKeyHash(movedKey2.nft, movedKey2.tokenId);
+                _sellerIndexPlus1[seller][movedHash2] = sIdx + 1;
+            }
+
+            delete _sellerIndexPlus1[seller][h];
         }
     }
 }
