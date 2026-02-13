@@ -1,35 +1,42 @@
-import { useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import contracts from "../../config/contracts.json";
-import { connectMetaMask, hasMetaMask } from "../lib/web3";
+import Web3 from "web3";
+import { AppContext } from "../context/appContext";
 import { formatUnits, getKny, getMarketplace, getSongNFT, parseUnits } from "../lib/contracts";
+import PageHeader from "../components/layout/PageHeader";
 
 export default function ProfilePage() {
-    const [account, setAccount] = useState(null);
-    const [chainId, setChainId] = useState(null);
-    const [error, setError] = useState(null);
+    const { web3, account, chainId, disconnect, refreshNonce, bumpRefresh } = useContext(AppContext);
 
-    const [songMarketplace, setSongMarketplace] = useState(null);
-    const [approvedForAll, setApprovedForAll] = useState(null);
-    const [knyDecimals, setKnyDecimals] = useState(null);
-
-    const [approveTx, setApproveTx] = useState(null);
-    const [offerTx, setOfferTx] = useState(null);
-    const [busy, setBusy] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
-
-    const [myAssets, setMyAssets] = useState([]);
-    const [assetSummary, setAssetSummary] = useState(null);
-    const [pricesByTokenId, setPricesByTokenId] = useState({});
-    const [busyTokenId, setBusyTokenId] = useState(null);
-
-    const mm = hasMetaMask();
     const expectedChainId = contracts.chainId;
     const chainOk = chainId !== null && Number(chainId) === Number(expectedChainId);
 
     const marketplaceAddr = useMemo(() => contracts.marketplace, []);
     const nftAddr = useMemo(() => contracts.songNft, []);
 
-    async function loadTokenIdsByEvents(web3, ownerAddress) {
+    const [error, setError] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const [songMarketplace, setSongMarketplace] = useState(null);
+    const [approvedForAll, setApprovedForAll] = useState(null);
+
+    const [ethBalance, setEthBalance] = useState(null);
+    const [knyBalance, setKnyBalance] = useState(null);
+    const [knyDecimals, setKnyDecimals] = useState(null);
+    const [knySymbol, setKnySymbol] = useState(null);
+
+    const [myAssets, setMyAssets] = useState([]);
+    const [pricesByTokenId, setPricesByTokenId] = useState({});
+    const [busyTokenId, setBusyTokenId] = useState(null);
+
+    const [approveTx, setApproveTx] = useState(null);
+    const [offerTx, setOfferTx] = useState(null);
+    const [actionLabel, setActionLabel] = useState(null);
+
+    const lastBlockRef = useRef(null);
+
+    async function loadTokenIdsByEvents(ownerAddress) {
         const ownerTopic = web3.eth.abi.encodeParameter("address", ownerAddress);
 
         const ownershipTopic0 = web3.utils.keccak256("OwnershipRecorded(uint256,address,uint256)");
@@ -67,23 +74,13 @@ export default function ProfilePage() {
         return Array.from(tokenIds).sort((a, b) => Number(a) - Number(b));
     }
 
-    async function ensureWallet() {
-        const { web3, account, chainId } = await connectMetaMask();
-        setAccount(account);
-        setChainId(chainId);
-        return { web3, account, chainId };
-    }
-
-    async function refreshStatus() {
+    async function refreshProfile() {
         try {
             setError(null);
-            setRefreshing(true);
-            setAssetSummary(null);
+            if (!web3 || !account) return;
+            if (!chainOk) return;
 
-            const { web3, account, chainId } = await ensureWallet();
-            if (Number(chainId) !== Number(expectedChainId)) {
-                throw new Error(`Wrong network (expected chainId ${expectedChainId})`);
-            }
+            setRefreshing(true);
 
             const [songCode, knyCode, mpCode] = await Promise.all([
                 web3.eth.getCode(contracts.songNft),
@@ -98,25 +95,25 @@ export default function ProfilePage() {
             const kny = getKny(web3);
             const mp = getMarketplace(web3);
 
-            const baseCalls = await Promise.allSettled([
+            const [mpAddr, allOk, ethWei, bal, decimals, symbol] = await Promise.all([
                 song.methods.marketplace().call(),
                 song.methods.isApprovedForAll(account, marketplaceAddr).call(),
+                web3.eth.getBalance(account),
+                kny.methods.balanceOf(account).call(),
                 kny.methods.decimals().call(),
+                kny.methods.symbol().call(),
             ]);
 
-            const mpAddr = baseCalls[0].status === "fulfilled" ? baseCalls[0].value : null;
-            const allOk = baseCalls[1].status === "fulfilled" ? baseCalls[1].value : null;
-            const decimalsRaw = baseCalls[2].status === "fulfilled" ? baseCalls[2].value : null;
+            setSongMarketplace(mpAddr);
+            setApprovedForAll(Boolean(allOk));
+            setEthBalance(Web3.utils.fromWei(String(ethWei), "ether"));
+            setKnyBalance(bal);
+            setKnyDecimals(Number(decimals));
+            setKnySymbol(symbol);
 
-            const decimals = decimalsRaw !== null ? Number(decimalsRaw) : 18;
-
-            const tokenIds = await loadTokenIdsByEvents(web3, account);
+            const tokenIds = await loadTokenIdsByEvents(account);
             if (tokenIds.length === 0) {
-                setSongMarketplace(mpAddr);
-                setApprovedForAll(Boolean(allOk));
-                setKnyDecimals(decimals);
                 setMyAssets([]);
-                setAssetSummary({ tokenIdsFound: 0, ownedNow: 0 });
                 return;
             }
 
@@ -160,77 +157,133 @@ export default function ProfilePage() {
                 })
             );
 
-            setSongMarketplace(mpAddr);
-            setApprovedForAll(Boolean(allOk));
-            setKnyDecimals(decimals);
             setMyAssets(ownedAssets);
-            setAssetSummary({ tokenIdsFound: tokenIds.length, ownedNow: ownedAssets.length });
         } catch (e) {
             setError(e?.message || String(e));
-            // Keep previous list on failure (avoid "everything disappears" UX).
         } finally {
             setRefreshing(false);
         }
     }
 
-    async function onApproveAll() {
-        try {
-            setError(null);
-            setApproveTx(null);
-            setBusy(true);
+    useEffect(() => {
+        setApproveTx(null);
+        setOfferTx(null);
+        setBusyTokenId(null);
+        setActionLabel(null);
+        setError(null);
+    }, [refreshNonce]);
 
-            const { web3, account, chainId } = await ensureWallet();
-            if (Number(chainId) !== Number(expectedChainId)) {
-                throw new Error(`Wrong network (expected chainId ${expectedChainId})`);
+    useEffect(() => {
+        if (!web3 || !account) return;
+        if (!chainOk) return;
+        refreshProfile();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [web3, account, chainId, refreshNonce]);
+
+    useEffect(() => {
+        if (!web3 || !account) return;
+        if (!chainOk) return;
+
+        let cancelled = false;
+
+        async function initBlock() {
+            try {
+                const latest = await web3.eth.getBlockNumber();
+                lastBlockRef.current = latest;
+            } catch {
+                lastBlockRef.current = null;
             }
-
-            const song = getSongNFT(web3);
-            const receipt = await song.methods.setApprovalForAll(marketplaceAddr, true).send({ from: account });
-            setApproveTx(receipt.transactionHash);
-
-            await refreshStatus();
-        } catch (e) {
-            setError(e?.message || String(e));
-        } finally {
-            setBusy(false);
         }
-    }
 
-    async function onApproveToken(tokenId) {
-        try {
-            setError(null);
-            setApproveTx(null);
-            setBusy(true);
-            setBusyTokenId(tokenId);
+        async function tick() {
+            try {
+                if (cancelled) return;
 
-            const { web3, account, chainId } = await ensureWallet();
-            if (Number(chainId) !== Number(expectedChainId)) {
-                throw new Error(`Wrong network (expected chainId ${expectedChainId})`);
+                const latest = await web3.eth.getBlockNumber();
+                const last = lastBlockRef.current;
+
+                if (last === null || last === undefined) {
+                    lastBlockRef.current = latest;
+                    return;
+                }
+
+                if (latest <= last) return;
+
+                const fromBlock = last + 1;
+                const toBlock = latest;
+
+                const topic0SongRegistered = web3.utils.keccak256("SongRegistered(address,uint256,bytes32,uint256,string)");
+                const topic0OwnershipRecorded = web3.utils.keccak256("OwnershipRecorded(uint256,address,uint256)");
+
+                const topic0OfferCreated = web3.utils.keccak256("OfferCreated(address,uint256,address,uint256,uint256)");
+                const topic0OfferCanceled = web3.utils.keccak256("OfferCanceled(address,uint256,address,uint256)");
+                const topic0OfferPriceUpdated = web3.utils.keccak256("OfferPriceUpdated(address,uint256,address,uint256,uint256)");
+                const topic0Purchased = web3.utils.keccak256("Purchased(address,uint256,address,address,uint256,address,uint256,uint256)");
+
+                const [songLogs, mpLogs] = await Promise.all([
+                    web3.eth.getPastLogs({
+                        address: contracts.songNft,
+                        fromBlock,
+                        toBlock,
+                        topics: [[topic0SongRegistered, topic0OwnershipRecorded]],
+                    }),
+                    web3.eth.getPastLogs({
+                        address: contracts.marketplace,
+                        fromBlock,
+                        toBlock,
+                        topics: [[topic0OfferCreated, topic0OfferCanceled, topic0OfferPriceUpdated, topic0Purchased]],
+                    }),
+                ]);
+
+                if ((songLogs && songLogs.length > 0) || (mpLogs && mpLogs.length > 0)) {
+                    await refreshProfile();
+                }
+
+                lastBlockRef.current = latest;
+            } catch {
+                // ignore transient RPC issues; next tick will retry
             }
-
-            const song = getSongNFT(web3);
-            const receipt = await song.methods.approve(marketplaceAddr, tokenId).send({ from: account });
-            setApproveTx(receipt.transactionHash);
-
-            await refreshStatus();
-        } catch (e) {
-            setError(e?.message || String(e));
-        } finally {
-            setBusy(false);
-            setBusyTokenId(null);
         }
-    }
+
+        initBlock();
+        const id = setInterval(tick, 2000);
+        return () => {
+            cancelled = true;
+            clearInterval(id);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [web3, account, chainId, refreshNonce]);
 
     async function onCreateOffer(tokenId) {
         try {
             setError(null);
             setOfferTx(null);
+            setApproveTx(null);
             setBusy(true);
             setBusyTokenId(tokenId);
+            setActionLabel("Preparing...");
 
-            const { web3, account, chainId } = await ensureWallet();
-            if (Number(chainId) !== Number(expectedChainId)) {
-                throw new Error(`Wrong network (expected chainId ${expectedChainId})`);
+            if (!web3 || !account) throw new Error("Not connected");
+            if (!chainOk) throw new Error(`Wrong network (expected chainId ${expectedChainId})`);
+
+            // Ensure NFT approval (single-token approve) before createOffer.
+            setActionLabel("Checking approval...");
+            const song = getSongNFT(web3);
+            const mp = getMarketplace(web3);
+
+            const [approvedAll, approvedAddr] = await Promise.all([
+                song.methods.isApprovedForAll(account, marketplaceAddr).call(),
+                song.methods.getApproved(tokenId).call(),
+            ]);
+
+            const approvedOk =
+                Boolean(approvedAll) ||
+                String(approvedAddr || "").toLowerCase() === marketplaceAddr.toLowerCase();
+
+            if (!approvedOk) {
+                setActionLabel("Approving NFT...");
+                const receiptApprove = await song.methods.approve(marketplaceAddr, tokenId).send({ from: account });
+                setApproveTx(receiptApprove.transactionHash);
             }
 
             const decimals = knyDecimals ?? 18;
@@ -238,114 +291,86 @@ export default function ProfilePage() {
             const price = parseUnits(uiPrice, decimals);
             if (BigInt(price) <= 0n) throw new Error("Price must be positive");
 
-            const mp = getMarketplace(web3);
+            setActionLabel("Creating offer...");
             const receipt = await mp.methods.createOffer(nftAddr, tokenId, price).send({ from: account });
             setOfferTx(receipt.transactionHash);
-
-            await refreshStatus();
+            bumpRefresh();
         } catch (e) {
             setError(e?.message || String(e));
         } finally {
             setBusy(false);
             setBusyTokenId(null);
+            setActionLabel(null);
         }
     }
 
     return (
-        <div style={{ padding: 16, fontFamily: "system-ui" }}>
-            <h2>Profile</h2>
+        <div className="container">
+            <PageHeader
+                title="Profile"
+                right={<button onClick={disconnect} className="btn btn-ghost">Disconnect</button>}
+            />
 
-            <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-                <div><b>Marketplace:</b> {marketplaceAddr}</div>
-                <div><b>SongNFT:</b> {nftAddr}</div>
-                <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
-                    Expected ChainId: {expectedChainId}
+            <div className="card">
+                <div className="row">
+                    <div className="pill">
+                        <span className="muted-2">ETH</span>
+                        <span style={{ fontWeight: 700 }}>{ethBalance ?? "-"}</span>
+                    </div>
+                    <div className="pill">
+                        <span className="muted-2">{knySymbol || "KNY"}</span>
+                        <span style={{ fontWeight: 700 }}>
+                            {knyBalance !== null && knyDecimals !== null ? formatUnits(knyBalance, knyDecimals) : "-"}
+                        </span>
+                    </div>
+                    {refreshing && <div className="pill">Syncing…</div>}
+                </div>
+
+                <div style={{ marginTop: 10, fontSize: 12 }} className="muted-2">
+                    <div>Account: <span className="mono">{account}</span></div>
+                    <div>ChainId: {chainId}</div>
+                    {!chainOk && <div className="error">Wrong network. Switch MetaMask to chainId {expectedChainId}.</div>}
+                </div>
+
+                <div style={{ marginTop: 10, fontSize: 12 }} className="muted-2">
+                    <div>Marketplace: <span className="mono">{marketplaceAddr}</span></div>
+                    <div>SongNFT: <span className="mono">{nftAddr}</span></div>
+                    {songMarketplace && (
+                        <div>SongNFT.marketplace(): <span className="mono">{songMarketplace}</span></div>
+                    )}
+                    {approvedForAll !== null && (
+                        <div>isApprovedForAll: {approvedForAll ? "true" : "false"}</div>
+                    )}
                 </div>
             </div>
 
-            {!mm && (
-                <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 8, color: "crimson" }}>
-                    MetaMask not detected.
-                </div>
-            )}
+            {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
 
-            <button
-                onClick={refreshStatus}
-                disabled={!mm || busy || refreshing}
-                style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, cursor: "pointer" }}
-            >
-                {refreshing ? "Refreshing..." : "Refresh my assets"}
-            </button>
-
-            {error && <div style={{ marginTop: 12, color: "crimson" }}>{error}</div>}
-
-            {(account || chainId !== null) && (
-                <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-                    {account && <div><b>Account:</b> {account}</div>}
-                    {chainId !== null && <div><b>ChainId:</b> {chainId}</div>}
-                    {!chainOk && (
-                        <div style={{ marginTop: 10, color: "crimson" }}>
-                            Wrong network. Switch MetaMask to chainId {expectedChainId}.
-                        </div>
-                    )}
-
-                    {songMarketplace && (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eee" }}>
-                            <div><b>SongNFT.marketplace():</b> {songMarketplace}</div>
-                            {songMarketplace.toLowerCase() !== marketplaceAddr.toLowerCase() && (
-                                <div style={{ marginTop: 8, color: "crimson" }}>
-                                    Mismatch: SongNFT points to a different marketplace address.
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {approvedForAll !== null && (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eee" }}>
-                            <div><b>isApprovedForAll(Marketplace):</b> {approvedForAll ? "true" : "false"}</div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-                <h3 style={{ margin: 0, fontSize: 16 }}>Sell (My Assets)</h3>
-
-                <button
-                    onClick={onApproveAll}
-                    disabled={!mm || busy || !chainOk}
-                    style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, cursor: "pointer" }}
-                >
-                    setApprovalForAll(Marketplace, true)
-                </button>
+            <div className="card" style={{ marginTop: 16 }}>
+                <h3 style={{ margin: 0, fontSize: 16 }}>My Assets</h3>
 
                 {approveTx && (
                     <div style={{ marginTop: 10, fontSize: 12 }}>
-                        <b>Approve tx:</b> {approveTx}
+                        <b>Approve tx:</b> <span className="mono">{approveTx}</span>
                     </div>
                 )}
 
                 {offerTx && (
                     <div style={{ marginTop: 10, fontSize: 12 }}>
-                        <b>CreateOffer tx:</b> {offerTx}
+                        <b>CreateOffer tx:</b> <span className="mono">{offerTx}</span>
                     </div>
                 )}
 
-                {assetSummary && (
-                    <div style={{ marginTop: 12, fontSize: 12, opacity: 0.85 }}>
-                        Found tokenIds: {assetSummary.tokenIdsFound}, owned now: {assetSummary.ownedNow}
+                {actionLabel && (
+                    <div style={{ marginTop: 10, fontSize: 12 }} className="muted-2">
+                        {actionLabel}
                     </div>
                 )}
-
-                <div style={{ marginTop: 12, fontSize: 12, opacity: 0.8 }}>
-                    Marketplace requires either <code>getApproved(tokenId)</code> == marketplace or{" "}
-                    <code>isApprovedForAll(owner, marketplace)</code> == true.
-                </div>
 
                 <div style={{ marginTop: 12 }}>
                     {myAssets.length === 0 ? (
-                        <div style={{ fontSize: 12, opacity: 0.8 }}>
-                            No assets loaded yet (or you don&apos;t own any in the scanned range).
+                        <div style={{ fontSize: 12 }} className="muted-2">
+                            {refreshing ? "Loading assets..." : "No assets yet."}
                         </div>
                     ) : (
                         myAssets.map((a) => {
@@ -361,43 +386,32 @@ export default function ProfilePage() {
                             const rowBusy = busy && String(busyTokenId) === String(a.tokenId);
 
                             return (
-                                <div
-                                    key={a.tokenId}
-                                    style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 8 }}
-                                >
-                                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                <div key={a.tokenId} className="card" style={{ marginTop: 12 }}>
+                                    <div className="row">
                                         <div>
                                             <div><b>TokenId:</b> {a.tokenId}</div>
-                                            <div style={{ marginTop: 4, fontSize: 12, opacity: 0.85 }}>
-                                                tokenURI: <code>{a.tokenURI}</code>
+                                            <div style={{ marginTop: 4, fontSize: 12 }} className="muted-2">
+                                                tokenURI: <span className="mono">{a.tokenURI}</span>
                                             </div>
-                                            <div style={{ marginTop: 4, fontSize: 12, opacity: 0.85 }}>
+                                            <div style={{ marginTop: 4, fontSize: 12 }} className="muted-2">
                                                 Approved: {approvedOk ? "yes" : "no"}{" "}
-                                                <span style={{ opacity: 0.7 }}>
+                                                <span className="muted-2">
                                                     ({approvedForAll ? "approvalForAll" : "tokenApproval"})
                                                 </span>
                                             </div>
                                             {hasOffer && (
                                                 <div style={{ marginTop: 6, fontSize: 12 }}>
                                                     <b>Active offer:</b>{" "}
-                                                    {offerPricePretty !== null ? `${offerPricePretty} KNY` : String(a.offer.price)}
+                                                    {offerPricePretty !== null ? `${offerPricePretty} ${knySymbol || "KNY"}` : String(a.offer.price)}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
 
                                     <div style={{ marginTop: 10 }}>
-                                        <button
-                                            onClick={() => onApproveToken(a.tokenId)}
-                                            disabled={!mm || !chainOk || busy}
-                                            style={{ padding: "8px 12px", borderRadius: 8, cursor: "pointer" }}
-                                        >
-                                            approve(Marketplace, tokenId)
-                                        </button>
-
                                         <div style={{ marginTop: 10 }}>
-                                            <label style={{ display: "block", fontSize: 12, opacity: 0.8 }}>
-                                                Price ({knyDecimals !== null ? `KNY, decimals=${knyDecimals}` : "KNY"})
+                                            <label className="label">
+                                                Price ({knyDecimals !== null ? `${knySymbol || "KNY"}, decimals=${knyDecimals}` : (knySymbol || "KNY")})
                                             </label>
                                             <input
                                                 value={pricesByTokenId[a.tokenId] ?? "10"}
@@ -405,26 +419,23 @@ export default function ProfilePage() {
                                                     setPricesByTokenId((prev) => ({ ...prev, [a.tokenId]: e.target.value }))
                                                 }
                                                 placeholder="e.g. 10"
-                                                style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ddd" }}
+                                                className="input"
                                             />
                                         </div>
 
                                         <button
                                             onClick={() => onCreateOffer(a.tokenId)}
-                                            disabled={!mm || !chainOk || busy}
-                                            style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, cursor: "pointer" }}
+                                            disabled={!chainOk || busy}
+                                            className="btn btn-primary"
+                                            style={{ marginTop: 10 }}
                                         >
-                                            {rowBusy ? "Working..." : "createOffer"}
+                                            {rowBusy ? "Working..." : "List for sale"}
                                         </button>
                                     </div>
                                 </div>
                             );
                         })
                     )}
-                </div>
-
-                <div style={{ marginTop: 12, fontSize: 12, opacity: 0.8 }}>
-                    Note: this UI discovers your tokenIds via on-chain events (OwnershipRecorded / SongRegistered).
                 </div>
             </div>
         </div>

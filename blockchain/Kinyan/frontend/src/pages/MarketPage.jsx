@@ -1,44 +1,33 @@
-import { useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import contracts from "../../config/contracts.json";
-import { connectMetaMask, hasMetaMask } from "../lib/web3";
 import { formatUnits, getKny, getMarketplace } from "../lib/contracts";
 import OfferDetailsPage from "./OfferDetailsPage";
+import { AppContext } from "../context/appContext";
+import PageHeader from "../components/layout/PageHeader";
 
 export default function MarketPage() {
-    const [account, setAccount] = useState(null);
-    const [chainId, setChainId] = useState(null);
-    const [error, setError] = useState(null);
+    const { web3, account, chainId, refreshNonce } = useContext(AppContext);
 
+    const [error, setError] = useState(null);
     const [offers, setOffers] = useState([]);
     const [selected, setSelected] = useState(null);
-
     const [knyDecimals, setKnyDecimals] = useState(null);
     const [knySymbol, setKnySymbol] = useState(null);
     const [busy, setBusy] = useState(false);
 
-    const mm = hasMetaMask();
     const expectedChainId = contracts.chainId;
     const chainOk = chainId !== null && Number(chainId) === Number(expectedChainId);
 
     const marketplaceAddr = useMemo(() => contracts.marketplace, []);
-
-    async function ensureWallet() {
-        const { web3, account, chainId } = await connectMetaMask();
-        setAccount(account);
-        setChainId(chainId);
-        return { web3, account, chainId };
-    }
+    const lastBlockRef = useRef(null);
 
     async function loadActiveOffers() {
         try {
             setError(null);
-            setBusy(true);
-            setOffers([]);
+            if (!web3 || !account) return;
+            if (Number(chainId) !== Number(expectedChainId)) return;
 
-            const { web3, chainId } = await ensureWallet();
-            if (Number(chainId) !== Number(expectedChainId)) {
-                throw new Error(`Wrong network (expected chainId ${expectedChainId})`);
-            }
+            setBusy(true);
 
             const mp = getMarketplace(web3);
             const kny = getKny(web3);
@@ -59,6 +48,79 @@ export default function MarketPage() {
         }
     }
 
+    useEffect(() => {
+        setSelected(null);
+    }, [refreshNonce]);
+
+    useEffect(() => {
+        if (!web3 || !account) return;
+        loadActiveOffers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [web3, account, chainId, refreshNonce]);
+
+    useEffect(() => {
+        if (!web3 || !account) return;
+        if (Number(chainId) !== Number(expectedChainId)) return;
+
+        let cancelled = false;
+
+        async function initBlock() {
+            try {
+                const latest = await web3.eth.getBlockNumber();
+                lastBlockRef.current = latest;
+            } catch {
+                lastBlockRef.current = null;
+            }
+        }
+
+        async function tick() {
+            try {
+                if (cancelled) return;
+
+                const latest = await web3.eth.getBlockNumber();
+                const last = lastBlockRef.current;
+
+                if (last === null || last === undefined) {
+                    lastBlockRef.current = latest;
+                    return;
+                }
+
+                if (latest <= last) return;
+
+                const fromBlock = last + 1;
+                const toBlock = latest;
+
+                const topic0OfferCreated = web3.utils.keccak256("OfferCreated(address,uint256,address,uint256,uint256)");
+                const topic0OfferCanceled = web3.utils.keccak256("OfferCanceled(address,uint256,address,uint256)");
+                const topic0OfferPriceUpdated = web3.utils.keccak256("OfferPriceUpdated(address,uint256,address,uint256,uint256)");
+                const topic0Purchased = web3.utils.keccak256("Purchased(address,uint256,address,address,uint256,address,uint256,uint256)");
+
+                const logs = await web3.eth.getPastLogs({
+                    address: marketplaceAddr,
+                    fromBlock,
+                    toBlock,
+                    topics: [[topic0OfferCreated, topic0OfferCanceled, topic0OfferPriceUpdated, topic0Purchased]],
+                });
+
+                if (logs && logs.length > 0) {
+                    await loadActiveOffers();
+                }
+
+                lastBlockRef.current = latest;
+            } catch {
+                // ignore transient RPC issues; next tick will retry
+            }
+        }
+
+        initBlock();
+        const id = setInterval(tick, 2000);
+        return () => {
+            cancelled = true;
+            clearInterval(id);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [web3, account, chainId, refreshNonce, marketplaceAddr]);
+
     if (selected) {
         return (
             <OfferDetailsPage
@@ -72,43 +134,31 @@ export default function MarketPage() {
     }
 
     return (
-        <div style={{ padding: 16, fontFamily: "system-ui" }}>
-            <h2>Market</h2>
+        <div className="container">
+            <PageHeader title="Market" />
 
-            <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-                <div><b>Marketplace:</b> {marketplaceAddr}</div>
-                <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+            <div className="card">
+                <div><b>Marketplace:</b> <span className="mono">{marketplaceAddr}</span></div>
+                <div style={{ marginTop: 8, fontSize: 12 }} className="muted-2">
                     Expected ChainId: {expectedChainId}
                 </div>
             </div>
 
-            {!mm && (
-                <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 8, color: "crimson" }}>
-                    MetaMask not detected.
-                </div>
-            )}
-
-            <button
-                onClick={loadActiveOffers}
-                disabled={!mm || busy}
-                style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, cursor: "pointer" }}
-            >
-                Load active offers
-            </button>
-
-            {error && <div style={{ marginTop: 12, color: "crimson" }}>{error}</div>}
+            {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
 
             {(account || chainId !== null) && (
-                <div style={{ marginTop: 16, fontSize: 12, opacity: 0.85 }}>
-                    {account && <div>Account: {account}</div>}
+                <div style={{ marginTop: 16, fontSize: 12 }} className="muted-2">
+                    {account && <div>Account: <span className="mono">{account}</span></div>}
                     {chainId !== null && <div>ChainId: {chainId}</div>}
-                    {!chainOk && <div style={{ color: "crimson" }}>Wrong network.</div>}
+                    {!chainOk && <div className="error">Wrong network.</div>}
                 </div>
             )}
 
             <div style={{ marginTop: 16 }}>
                 {offers.length === 0 ? (
-                    <div style={{ fontSize: 12, opacity: 0.8 }}>No active offers loaded.</div>
+                    <div style={{ fontSize: 12 }} className="muted-2">
+                        {busy ? "Loading offers..." : "No active offers."}
+                    </div>
                 ) : (
                     offers.map((o) => {
                         const pricePretty =
@@ -119,20 +169,22 @@ export default function MarketPage() {
                         return (
                             <div
                                 key={`${o.nft}-${o.tokenId}`}
-                                style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 8 }}
+                                className="card"
+                                style={{ marginTop: 12 }}
                             >
-                                <div><b>NFT:</b> {o.nft}</div>
+                                <div><b>NFT:</b> <span className="mono">{o.nft}</span></div>
                                 <div><b>TokenId:</b> {o.tokenId}</div>
-                                <div><b>Seller:</b> {o.seller}</div>
+                                <div><b>Seller:</b> <span className="mono">{o.seller}</span></div>
                                 <div><b>Price:</b> {pricePretty}</div>
-                                <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+                                <div style={{ marginTop: 8, fontSize: 12 }} className="muted-2">
                                     CreatedAt: {o.createdAt} ({new Date(Number(o.createdAt) * 1000).toLocaleString()})
                                 </div>
 
                                 <button
                                     onClick={() => setSelected(o)}
                                     disabled={busy}
-                                    style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, cursor: "pointer" }}
+                                    className="btn"
+                                    style={{ marginTop: 10 }}
                                 >
                                     Details / Purchase
                                 </button>

@@ -70,18 +70,18 @@ export default function WalletPage() {
         knyBalance !== null && knyDecimals !== null ? formatUnits(knyBalance, knyDecimals) : null;
 
     return (
-        <div style={{ padding: 16, fontFamily: "system-ui" }}>
-            <h2>Wallet</h2>
+        <div className="container">
+            <h2 className="page-title">Wallet</h2>
 
-            <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+            <div className="card">
                 <div><b>Expected ChainId:</b> {expected}</div>
-                <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
-                    config source: <code>config/contracts.json</code>
+                <div style={{ marginTop: 8 }} className="muted-2">
+                    config source: <span className="mono">frontend/config/contracts.json</span>
                 </div>
             </div>
 
             {!mm && (
-                <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 8, color: "crimson" }}>
+                <div className="card error" style={{ marginTop: 12 }}>
                     MetaMask not detected.
                 </div>
             )}
@@ -89,46 +89,48 @@ export default function WalletPage() {
             <button
                 onClick={onConnect}
                 disabled={!mm}
-                style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, cursor: "pointer" }}
+                className="btn btn-primary"
+                style={{ marginTop: 12 }}
             >
                 Connect MetaMask
             </button>
 
-            {error && <div style={{ marginTop: 12, color: "crimson" }}>{error}</div>}
+            {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
 
             {account && (
-                <div style={{ marginTop: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-                    <div><b>Account:</b> {account}</div>
+                <div className="card" style={{ marginTop: 16 }}>
+                    <div><b>Account:</b> <span className="mono">{account}</span></div>
                     <div><b>ChainId:</b> {chainId}</div>
 
                     {!chainOk && (
-                        <div style={{ marginTop: 10, color: "crimson" }}>
+                        <div className="error" style={{ marginTop: 10 }}>
                             Wrong network. Switch MetaMask to chainId {expected}.
                         </div>
                     )}
 
                     <div style={{ marginTop: 12 }}>
-                        <div><b>KNY:</b> {contracts.kny}</div>
-                        <div><b>Marketplace:</b> {contracts.marketplace}</div>
-                        <div><b>SongNFT:</b> {contracts.songNft}</div>
+                        <div><b>KNY:</b> <span className="mono">{contracts.kny}</span></div>
+                        <div><b>Marketplace:</b> <span className="mono">{contracts.marketplace}</span></div>
+                        <div><b>SongNFT:</b> <span className="mono">{contracts.songNft}</span></div>
                     </div>
 
                     <button
                         onClick={loadContractData}
                         disabled={!chainOk}
-                        style={{ marginTop: 14, padding: "10px 14px", borderRadius: 8, cursor: "pointer" }}
+                        className="btn"
+                        style={{ marginTop: 14 }}
                     >
                         Load contract data
                     </button>
 
                     {songMarketplace && (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eee" }}>
-                            <div><b>SongNFT.marketplace():</b> {songMarketplace}</div>
-                            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                            <div><b>SongNFT.marketplace():</b> <span className="mono">{songMarketplace}</span></div>
+                            <div style={{ marginTop: 6 }} className="muted-2">
                                 Expected: {contracts.marketplace}
                             </div>
                             {songMarketplace.toLowerCase() !== contracts.marketplace.toLowerCase() && (
-                                <div style={{ marginTop: 8, color: "crimson" }}>
+                                <div className="error" style={{ marginTop: 8 }}>
                                     Mismatch: SongNFT points to a different marketplace address.
                                 </div>
                             )}
@@ -136,7 +138,7 @@ export default function WalletPage() {
                     )}
 
                     {(ethBalance !== null || knyPretty !== null) && (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eee" }}>
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
                             {ethBalance !== null && <div><b>ETH:</b> {ethBalance}</div>}
                             {knyPretty !== null && <div><b>{knySymbol || "KNY"}:</b> {knyPretty}</div>}
                         </div>
