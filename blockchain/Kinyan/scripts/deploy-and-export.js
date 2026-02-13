@@ -46,10 +46,10 @@ async function main() {
   console.log("Deployed:", addresses);
 
   // Export addresses to frontend
-  const frontendPath = path.join(__dirname, "..", "frontend", "src", "contracts.json");
-  fs.mkdirSync(path.dirname(frontendPath), { recursive: true });
-  fs.writeFileSync(frontendPath, JSON.stringify(addresses, null, 2));
-  console.log("Wrote:", frontendPath);
+  const outPath = path.join(__dirname, "..", "frontend", "config", "contracts.json");
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify(addresses, null, 2));
+  console.log("Wrote:", outPath);
 }
 
 main().catch((e) => {
