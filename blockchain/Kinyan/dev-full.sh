@@ -48,11 +48,6 @@ detect_fund_file() {
   fi
 }
 
-open_wallet_tabs() {
-  return 0
-}
-
-# --- Upgrade #2: Detect if node/frontend already running & kill ---
 kill_port 8545
 kill_port 5173
 kill_port 8787
@@ -107,7 +102,6 @@ if ! wait_for_port 5173; then
 fi
 echo "Frontend is up."
 
-# --- Upgrade #1: Open browser automatically ---
 if command -v open >/dev/null 2>&1; then
   open "$VITE_URL"
 elif command -v xdg-open >/dev/null 2>&1; then

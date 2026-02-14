@@ -167,7 +167,6 @@ export default function RegisterPage() {
             const song = getSongNFT(web3);
             const h = computeHash(songName);
 
-            // Pre-check: prevent a reverting tx (MetaMask sometimes shows it as "gas too high").
             const existing = await song.methods.tokenIdBySongHash(h).call().catch(() => "0");
             if (BigInt(existing) !== 0n) {
                 setExistingTokenId(existing);
@@ -222,7 +221,6 @@ export default function RegisterPage() {
             return;
         }
 
-        // If tokenURI was generated from Spotify, we already have a preview. For manual edits, fetch metadata.
         if (preview?.tokenURI === uri) return;
 
         let cancelled = false;
@@ -231,8 +229,8 @@ export default function RegisterPage() {
             setPreviewLoading(true);
             try {
                 await loadPreviewFromTokenUri(uri);
-            } catch {
-                // handled in helper
+            } catch (e) {
+                void e;
             } finally {
                 if (!cancelled) setPreviewLoading(false);
             }

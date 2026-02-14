@@ -223,7 +223,6 @@ export default function MarketPage() {
                 if (metaByKey[key]?.loading || metaByKey[key]?.meta) continue;
                 if (!isSongOffer(o)) continue;
 
-                // Load tokenURI + metadata with timeout/error handling.
                 await loadOfferMetadata(o, { force: false });
             }
         }

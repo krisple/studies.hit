@@ -47,7 +47,6 @@ export default function TokenHistoryPage({ nft, tokenId, onBack }) {
                 kny.methods.symbol().call().catch(() => null),
             ]);
 
-            // token metadata (best effort)
             if (uri) {
                 setTokenURI(uri);
                 const md = await fetchMetadata(uri);

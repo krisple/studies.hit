@@ -6,7 +6,6 @@ function parseAddressesFromFile(filePath) {
   const raw = fs.readFileSync(filePath, "utf8").trim();
   if (!raw) return [];
 
-  // JSON support
   if (raw.startsWith("[") || raw.startsWith("{")) {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed;
@@ -14,7 +13,6 @@ function parseAddressesFromFile(filePath) {
     throw new Error("Invalid FUND_FILE JSON. Expected an array or { addresses: [...] }");
   }
 
-  // Plain text support: one address per line (comments allowed with #)
   return raw
     .split(/\r?\n/g)
     .map((l) => l.trim())
@@ -47,10 +45,8 @@ async function main() {
 
   const [deployer] = await ethers.getSigners();
 
-  // ETH
   const ethAmount = process.env.FUND_ETH || "10";
 
-  // KNY
   const knyAmount = process.env.FUND_KNY || "5000";
   const token = await ethers.getContractAt("KinyanToken", cfg.kny);
 
@@ -59,19 +55,17 @@ async function main() {
       throw new Error(`Invalid recipient address: ${recipient}`);
     }
 
-    console.log("Funding address:", recipient);
-
     await deployer.sendTransaction({
       to: recipient,
       value: ethers.parseEther(ethAmount),
     });
-    console.log(`  Sent ${ethAmount} ETH`);
 
     await token.transfer(recipient, ethers.parseUnits(knyAmount, 18));
-    console.log(`  Sent ${knyAmount} KNY`);
+
+    console.log(`Funded ${recipient} (+${ethAmount} ETH, +${knyAmount} KNY)`);
   }
 
-  console.log("Funding complete");
+  console.log(`Funded ${recipients.length} wallet(s).`);
 }
 
 main().catch((err) => {

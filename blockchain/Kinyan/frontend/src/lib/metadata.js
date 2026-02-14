@@ -1,7 +1,7 @@
 const DEFAULT_IPFS_GATEWAY = "https://ipfs.io/ipfs/";
 const DEFAULT_TIMEOUT_MS = 12_000;
 
-const _jsonCache = new Map(); // url -> Promise
+const _jsonCache = new Map();
 
 function getIpfsGateway() {
     try {
@@ -13,7 +13,6 @@ function getIpfsGateway() {
         const raw = env ? String(env).trim() : "";
         if (!raw) return DEFAULT_IPFS_GATEWAY;
 
-        // Allow passing either ".../ipfs/" or just the origin (e.g. "https://gateway.pinata.cloud").
         if (raw.includes("/ipfs/")) return raw.endsWith("/") ? raw : `${raw}/`;
         if (raw.endsWith("/ipfs")) return `${raw}/`;
 
@@ -31,7 +30,6 @@ function toHttpUrl(uri) {
 
     if (s.startsWith("ipfs://")) {
         const path = s.slice("ipfs://".length).replace(/^ipfs\//, "");
-        // If backend returned a demo CID (ipfs://demo-...), always fetch it from the local backend gateway.
         if (path.startsWith("demo-")) {
             const backend =
                 typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_BACKEND_URL
@@ -45,7 +43,6 @@ function toHttpUrl(uri) {
     if (s.startsWith("http://") || s.startsWith("https://")) return s;
     if (s.startsWith("data:")) return s;
 
-    // Allow relative paths for local dev (e.g. "/metadata/song1.json" or "metadata/song1.json")
     if (typeof window !== "undefined") {
         if (s.startsWith("/")) return `${window.location.origin}${s}`;
         return `${window.location.origin}/${s}`;

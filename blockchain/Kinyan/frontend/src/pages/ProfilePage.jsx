@@ -88,7 +88,6 @@ export default function ProfilePage() {
                     ? knownUri
                     : await getSongNFT(web3).methods.tokenURI(id).call();
 
-            // Show tokenURI even if metadata fails.
             setMetaByTokenId((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), tokenURI, loading: true, error: null } }));
 
             const md = await fetchMetadata(tokenURI);
@@ -102,12 +101,11 @@ export default function ProfilePage() {
     }
 
     async function loadOwnedTokenIds(ownerAddress) {
-        // Prefer event-based discovery (fewer RPC calls). If logs fail, fall back to scanning minted ids.
         try {
             const byLogs = await loadTokenIdsByEvents(ownerAddress);
             if (byLogs.length > 0) return byLogs;
-        } catch {
-            // fall back below
+        } catch (e) {
+            void e;
         }
 
         const song = getSongNFT(web3);
@@ -309,8 +307,8 @@ export default function ProfilePage() {
                 }
 
                 lastBlockRef.current = latest;
-            } catch {
-                // ignore transient RPC issues; next tick will retry
+            } catch (e) {
+                void e;
             }
         }
 
@@ -348,7 +346,6 @@ export default function ProfilePage() {
             if (!web3 || !account) throw new Error("Not connected");
             if (!chainOk) throw new Error(`Wrong network (expected chainId ${expectedChainId})`);
 
-            // Ensure NFT approval (single-token approve) before createOffer.
             setActionByTokenId((prev) => ({ ...prev, [id]: "Approving NFT (if needed)..." }));
             const mp = getMarketplace(web3);
             await ensureNftApproval(tokenId);

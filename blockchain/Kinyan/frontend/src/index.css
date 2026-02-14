@@ -56,7 +56,6 @@ body {
   position: relative;
 }
 
-/* Fixed "hero" background only at the top (prevents repeating/overlap when scrolling). */
 body::before {
   content: "";
   position: fixed;

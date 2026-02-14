@@ -211,7 +211,6 @@ export function parseUnits(value, decimals) {
 
     const frac = fracRaw.slice(0, dec).padEnd(dec, "0");
     if (fracRaw.length > dec) {
-        // Reject rather than silently rounding (keeps behavior explicit for students).
         throw new Error(`Too many decimal places (max ${dec})`);
     }
 

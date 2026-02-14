@@ -27,28 +27,23 @@ function hasEnv(name) {
 }
 
 function extractSpotifyTrackId(input) {
-  // input יכול להיות trackId או URL
   if (!input) return null;
 
-  // trackId רגיל (22 תווים אלפא-נומריים לרוב)
   if (/^[A-Za-z0-9]{10,}$/.test(input) && !input.includes("spotify.com")) {
     return input;
   }
 
   try {
     const url = new URL(input);
-    // https://open.spotify.com/track/<id>?...
     const parts = url.pathname.split("/").filter(Boolean);
     const i = parts.indexOf("track");
     if (i !== -1 && parts[i + 1]) return parts[i + 1];
 
-    // spotify:track:<id>
     if (input.startsWith("spotify:track:")) {
       return input.split(":")[2] || null;
     }
     return null;
   } catch {
-    // אולי זה spotify:track:...
     if (input.startsWith("spotify:track:")) {
       return input.split(":")[2] || null;
     }
@@ -129,7 +124,6 @@ async function fetchSpotifyTrackOEmbed(trackId) {
 }
 
 async function fetchSpotifyTrack(trackId) {
-  // Prefer official Spotify Web API (requires secrets), fallback to public oEmbed (no secrets).
   if (!hasEnv("SPOTIFY_CLIENT_ID") || !hasEnv("SPOTIFY_CLIENT_SECRET")) {
     return fetchSpotifyTrackOEmbed(trackId);
   }
@@ -157,7 +151,6 @@ async function fetchSpotifyTrack(trackId) {
   };
 }
 
-// Demo-mode IPFS pinning: if PINATA_JWT is missing, keep metadata in-memory and serve via /ipfs/<cid>.
 const demoPins = new Map(); // cid -> { json, fileName, pinnedAt }
 
 function makeDemoCid() {
@@ -173,7 +166,6 @@ async function pinJsonToIPFS(jsonObj, fileName = "metadata.json") {
     return cid;
   }
 
-  // Pinata: pinJSONToIPFS
   const res = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
     method: "POST",
     headers: {
@@ -195,7 +187,6 @@ async function pinJsonToIPFS(jsonObj, fileName = "metadata.json") {
   }
 
   const data = await res.json();
-  // data.IpfsHash
   return data.IpfsHash;
 }
 
@@ -205,9 +196,8 @@ app.get("/api/health", (req, res) => {
     demoMode: !hasEnv("PINATA_JWT"),
     spotifyMode: hasEnv("SPOTIFY_CLIENT_ID") && hasEnv("SPOTIFY_CLIENT_SECRET") ? "web-api" : "oembed",
   });
-});
+  });
 
-// Acts as an IPFS gateway for demo pins when VITE_IPFS_GATEWAY points here (e.g. http://localhost:8787/ipfs/).
 app.get("/ipfs/:cid", (req, res) => {
   const cid = String(req.params.cid || "").trim();
   const pin = demoPins.get(cid);
@@ -215,10 +205,6 @@ app.get("/ipfs/:cid", (req, res) => {
   res.json(pin.json);
 });
 
-/**
- * GET /api/spotify/track?input=<spotify url or id>
- * מחזיר מטא-דאטה בסיסי
- */
 app.get("/api/spotify/track", async (req, res) => {
   try {
     const input = String(req.query.input || "");
@@ -234,11 +220,6 @@ app.get("/api/spotify/track", async (req, res) => {
   }
 });
 
-/**
- * POST /api/metadata/from-spotify
- * body: { input: "<spotify url or trackId>", creator?: "0x..", extra?: {...} }
- * יוצר metadata.json, מעלה ל-IPFS, ומחזיר tokenURI = ipfs://<cid>
- */
 app.post("/api/metadata/from-spotify", async (req, res) => {
   try {
     const { input, creator, extra } = req.body || {};
@@ -249,12 +230,11 @@ app.post("/api/metadata/from-spotify", async (req, res) => {
 
     const track = await fetchSpotifyTrack(trackId);
 
-    // NFT metadata (ERC721 common fields)
     const metadata = {
       name: track.name,
       description: "Kinyan Song NFT (metadata from Spotify)",
-      image: track.imageUrl,              // URL חיצוני (לא IPFS) כדי להישאר מינימלי
-      external_url: track.spotifyUrl,     // לינק ל-Spotify
+      image: track.imageUrl,
+      external_url: track.spotifyUrl,
       attributes: [
         { trait_type: "Artist", value: track.artists },
         { trait_type: "Album", value: track.album },
@@ -274,6 +254,4 @@ app.post("/api/metadata/from-spotify", async (req, res) => {
 });
 
 const PORT = Number(process.env.PORT || 8787);
-app.listen(PORT, () => {
-  console.log(`Kinyan backend listening on http://localhost:${PORT}`);
-});
+app.listen(PORT);
