@@ -28,6 +28,28 @@
   margin-bottom: 12px;
 }
 
+.page-header-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 12px 0 10px;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(124, 92, 255, 0.35), rgba(124, 92, 255, 0) 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(0, 210, 255, 0.22), rgba(0, 210, 255, 0) 55%),
+    var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.page-header-inner {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
 .page-header-left {
   display: flex;
   align-items: center;

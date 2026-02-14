@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/cache
+**/artifacts
+**/.openzeppelin
+**/.DS_Store
+**/*.log
+backend/.env
+frontend/.env

@@ -1,0 +1,20 @@
+services:
+  kinyan:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8545:8545"   # Hardhat JSON-RPC
+      - "8787:8787"   # Backend API
+      - "5173:5173"   # Frontend (Vite)
+    # Load backend secrets locally (not committed to git).
+    # Create it from `backend/.env.example`.
+    env_file:
+      - backend/.env
+    environment:
+      PORT: "8787"
+      FRONTEND_ORIGIN: "http://localhost:5173"
+      VITE_BACKEND_URL: "http://localhost:8787"
+      # Optional: if you use a real IPFS gateway (Pinata), set it here.
+      # VITE_IPFS_GATEWAY: "https://gateway.pinata.cloud/ipfs/"
+    restart: unless-stopped

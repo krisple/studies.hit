@@ -7,6 +7,8 @@ FUND_FILE="${FUND_FILE:-}"
 FUND_ETH="${FUND_ETH:-10}"
 FUND_KNY="${FUND_KNY:-5000}"
 VITE_URL="${VITE_URL:-http://localhost:5173}"
+BACKEND_URL="${BACKEND_URL:-http://localhost:8787}"
+VITE_BACKEND_URL="${VITE_BACKEND_URL:-$BACKEND_URL}"
 
 # Resolve project root (works no matter where you run it from)
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -53,6 +55,7 @@ open_wallet_tabs() {
 # --- Upgrade #2: Detect if node/frontend already running & kill ---
 kill_port 8545
 kill_port 5173
+kill_port 8787
 
 echo "Starting Hardhat node..."
 (cd "$ROOT_DIR" && npx hardhat node >/dev/null 2>&1) &
@@ -74,8 +77,27 @@ echo "Funding wallet..."
 (cd "$ROOT_DIR" && FUND_FILE="$FUND_FILE" FUND_ADDRESS="$FUND_ADDRESS" FUND_ETH="$FUND_ETH" FUND_KNY="$FUND_KNY" \
   npx hardhat run scripts/fund-account.js --network localhost)
 
+echo "Starting backend..."
+if [[ ! -d "$ROOT_DIR/backend/node_modules" ]]; then
+  echo "Installing backend dependencies..."
+  (cd "$ROOT_DIR/backend" && npm install >/dev/null 2>&1)
+fi
+(cd "$ROOT_DIR/backend" && npm run dev >/dev/null 2>&1) &
+BACKEND_PID=$!
+
+# Wait until backend is listening
+if ! wait_for_port 8787; then
+  echo "Backend did not start on port 8787."
+  exit 1
+fi
+echo "Backend is up."
+
 echo "Starting frontend (Vite)..."
-(cd "$ROOT_DIR/frontend" && npm run dev >/dev/null 2>&1) &
+if [[ ! -d "$ROOT_DIR/frontend/node_modules" ]]; then
+  echo "Installing frontend dependencies..."
+  (cd "$ROOT_DIR/frontend" && npm install >/dev/null 2>&1)
+fi
+(cd "$ROOT_DIR/frontend" && VITE_BACKEND_URL="$VITE_BACKEND_URL" npm run dev >/dev/null 2>&1) &
 VITE_PID=$!
 
 # Wait until Vite is listening
@@ -96,6 +118,7 @@ echo ""
 echo "✅ Ready"
 echo " - Hardhat node: http://127.0.0.1:8545"
 echo " - Frontend:     $VITE_URL"
+echo " - Backend:      $BACKEND_URL"
 if [[ -n "${FUND_FILE}" ]]; then
   echo " - Funded:       from file: ${FUND_FILE} (${FUND_ETH} ETH, ${FUND_KNY} KNY each)"
 else
@@ -105,5 +128,5 @@ echo ""
 echo "Press Ctrl+C to stop."
 
 # Keep script alive; kill child processes on exit
-trap "kill $HARDHAT_PID $VITE_PID 2>/dev/null || true" EXIT
+trap "kill $HARDHAT_PID $BACKEND_PID $VITE_PID 2>/dev/null || true" EXIT
 wait

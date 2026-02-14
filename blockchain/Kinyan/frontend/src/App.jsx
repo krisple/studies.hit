@@ -8,7 +8,7 @@ import { AppContext } from "./context/appContext";
 
 export default function App() {
     const { connected } = useContext(AppContext);
-    const [tab, setTab] = useState("market");
+    const [tab, setTab] = useState("profile");
 
     if (!connected) {
         return <SplashPage />;

@@ -51,11 +51,29 @@ body {
 body {
   margin: 0;
   min-width: 320px;
+  background: var(--bg);
+  color: var(--text);
+  position: relative;
+}
+
+/* Fixed "hero" background only at the top (prevents repeating/overlap when scrolling). */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 280px;
+  pointer-events: none;
+  z-index: 0;
   background:
     radial-gradient(1200px 600px at 20% -10%, rgba(124, 92, 255, 0.35), transparent 55%),
-    radial-gradient(900px 500px at 90% 0%, rgba(0, 210, 255, 0.22), transparent 55%),
-    var(--bg);
-  color: var(--text);
+    radial-gradient(900px 500px at 90% 0%, rgba(0, 210, 255, 0.22), transparent 55%);
+}
+
+#root {
+  position: relative;
+  z-index: 1;
 }
 
 a {
