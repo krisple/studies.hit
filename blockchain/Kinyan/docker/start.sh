@@ -43,6 +43,9 @@ if ! wait_for_rpc; then
 fi
 echo "Hardhat node is up."
 
+echo "Syncing chain time..."
+(cd "$ROOT_DIR" && npx hardhat run scripts/sync-chain-time.js --network localhost) || true
+
 echo "Deploying contracts + exporting config..."
 (cd "$ROOT_DIR" && npx hardhat run scripts/deploy-and-export.js --network localhost)
 

@@ -21,6 +21,8 @@ export default function TokenHistoryPage({ nft, tokenId, onBack }) {
 
     const [knyDecimals, setKnyDecimals] = useState(null);
     const [knySymbol, setKnySymbol] = useState(null);
+    const [chainNowTs, setChainNowTs] = useState(null);
+    const [chainSkewSec, setChainSkewSec] = useState(null);
 
     const isSongNft = useMemo(
         () => String(nft).toLowerCase() === String(contracts.songNft).toLowerCase(),
@@ -39,12 +41,13 @@ export default function TokenHistoryPage({ nft, tokenId, onBack }) {
             const mp = getMarketplace(web3);
             const kny = getKny(web3);
 
-            const [tradeHistory, ownershipHistory, uri, decimals, symbol] = await Promise.all([
+            const [tradeHistory, ownershipHistory, uri, decimals, symbol, latestBlock] = await Promise.all([
                 mp.methods.getTradeHistory(nft, tokenId).call(),
                 isSongNft ? song.methods.getOwnershipHistory(tokenId).call() : Promise.resolve([]),
                 isSongNft ? song.methods.tokenURI(tokenId).call() : Promise.resolve(null),
                 kny.methods.decimals().call().catch(() => null),
                 kny.methods.symbol().call().catch(() => null),
+                web3.eth.getBlock("latest").catch(() => null),
             ]);
 
             if (uri) {
@@ -57,6 +60,16 @@ export default function TokenHistoryPage({ nft, tokenId, onBack }) {
             setOwners(Array.isArray(ownershipHistory) ? ownershipHistory : []);
             setKnyDecimals(decimals !== null ? Number(decimals) : null);
             setKnySymbol(symbol || null);
+
+            const ts = latestBlock?.timestamp != null ? Number(latestBlock.timestamp) : null;
+            if (ts && Number.isFinite(ts)) {
+                setChainNowTs(ts);
+                const localNow = Math.floor(Date.now() / 1000);
+                setChainSkewSec(ts - localNow);
+            } else {
+                setChainNowTs(null);
+                setChainSkewSec(null);
+            }
         } catch (e) {
             setError(e?.message || String(e));
         } finally {
@@ -79,6 +92,22 @@ export default function TokenHistoryPage({ nft, tokenId, onBack }) {
             {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
 
             {busy && <div className="muted-2" style={{ fontSize: 12, marginTop: 12 }}>Loading...</div>}
+
+            {chainSkewSec !== null && Math.abs(chainSkewSec) > 300 && (
+                <div className="card" style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 12 }}>
+                        <b>Note:</b> Timestamps here come from the blockchain (<span className="mono">block.timestamp</span>).
+                        <br />
+                        Chain time:{" "}
+                        {chainNowTs !== null ? new Date(chainNowTs * 1000).toLocaleString() : "unknown"}
+                        <br />
+                        Your computer: {new Date().toLocaleString()}
+                        <br />
+                        If you’re using a local Hardhat node, it may not advance with real time after downtime.
+                        Restart the node or run <span className="mono">npx hardhat run scripts/sync-chain-time.js --network localhost</span>.
+                    </div>
+                </div>
+            )}
 
             <div className="card" style={{ marginTop: 12 }}>
                 <SongBasics tokenId={tokenId} tokenURI={tokenURI} meta={meta} />

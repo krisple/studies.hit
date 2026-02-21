@@ -63,6 +63,9 @@ if ! wait_for_port 8545; then
 fi
 echo "Hardhat node is up."
 
+echo "Syncing chain time..."
+(cd "$ROOT_DIR" && npx hardhat run scripts/sync-chain-time.js --network localhost >/dev/null 2>&1) || true
+
 detect_fund_file
 
 echo "Deploying contracts + exporting config..."

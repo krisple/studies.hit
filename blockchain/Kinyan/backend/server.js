@@ -232,7 +232,7 @@ app.post("/api/metadata/from-spotify", async (req, res) => {
 
     const metadata = {
       name: track.name,
-      description: "Kinyan Song NFT (metadata from Spotify)",
+      description: "Kinyan Song NFT",
       image: track.imageUrl,
       external_url: track.spotifyUrl,
       attributes: [
