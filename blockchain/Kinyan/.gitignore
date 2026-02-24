@@ -1,11 +1,6 @@
 ### Node / JS
 node_modules/
 
-### Environment
-.env
-.env.local
-.env.*.local
-
 ### Hardhat / Solidity
 /cache/
 /artifacts/

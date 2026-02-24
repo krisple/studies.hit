@@ -76,8 +76,6 @@ frontend/.next/
 ############################
 # Node.js / Hardhat extras
 ############################
-.env
-.env.*
 
 # TypeChain output
 **/typechain
