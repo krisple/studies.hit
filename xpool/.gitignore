@@ -1,9 +1,0 @@
-/target/*
-/lib/
-*.class
-.vscode/
-*.log
-tmp/
-.gemini/
-.agents/
-!/target/xpool.jar

@@ -1,5 +1,3 @@
-package testapp;
-
 import il.ac.hit.xpool.Task;
 
 public class SimpleTask implements Task {

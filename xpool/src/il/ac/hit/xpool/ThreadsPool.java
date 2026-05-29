@@ -11,7 +11,7 @@ public class ThreadsPool {
     /**
      * The shared priority queue for storing submitted tasks.
      */
-    private final PriorityQueue<Task> tasksQueue;
+    private PriorityQueue<Task> tasksQueue;
 
     /**
      * Primary constructor for ThreadsPool.
@@ -22,11 +22,19 @@ public class ThreadsPool {
     public ThreadsPool(int numberOfThreads) {
         super();
 
-        // initializing the task queue with priority-based ordering
-        this.tasksQueue = new PriorityQueue<>(new TaskComparator());
+        // initializing the task queue with priority-based ordering via setter
+        setTasksQueue(new PriorityQueue<>(new TaskComparator()));
 
         // validating and initializing workers
         initializePool(numberOfThreads);
+    }
+
+    /**
+     * Sets the tasks queue for the pool.
+     * * @param tasksQueue The priority queue to be assigned.
+     */
+    private void setTasksQueue(PriorityQueue<Task> tasksQueue) {
+        this.tasksQueue = tasksQueue;
     }
 
     /**
@@ -57,8 +65,6 @@ public class ThreadsPool {
         if (task == null) {
             throw new XPoolException("Cannot submit a null task");
         }
-
-        // logger.log(Level.INFO, "New task submitted with priority: {0}", task.getPriority());
 
         // safely adding the task to the queue and notifying a waiting worker
         synchronized (tasksQueue) {

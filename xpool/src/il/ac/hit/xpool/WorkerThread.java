@@ -12,7 +12,7 @@ public class WorkerThread extends Thread {
     /**
      * The shared queue from which tasks are retrieved.
      */
-    private final Queue<Task> tasksQueue;
+    private Queue<Task> tasksQueue;
 
     /**
      * Primary constructor for WorkerThread.
@@ -26,6 +26,14 @@ public class WorkerThread extends Thread {
         if (queue == null) {
             throw new XPoolException("Tasks queue cannot be null");
         }
+        setTasksQueue(queue);
+    }
+
+    /**
+     * Sets the tasks queue for this worker.
+     * * @param queue The queue to be assigned.
+     */
+    private void setTasksQueue(Queue<Task> queue) {
         this.tasksQueue = queue;
     }
 
@@ -73,7 +81,6 @@ public class WorkerThread extends Thread {
         } catch (RuntimeException e) {
             System.err.println("Exception occurred during task execution in worker " + getName());
             e.printStackTrace();
-            // wrapping and logging is sufficient as we want the worker thread to survive
         }
     }
 }
