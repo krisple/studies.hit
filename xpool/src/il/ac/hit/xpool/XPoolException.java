@@ -7,6 +7,11 @@ package il.ac.hit.xpool;
 public class XPoolException extends RuntimeException {
 
     /**
+     * Serial version UID for serialization compatibility.
+     */
+    private static final long serialVersionUID = 1L;
+
+    /**
      * Constructs a new exception with the specified detail message.
      * 
      * @param message The detail message describing the failure.
@@ -23,5 +28,15 @@ public class XPoolException extends RuntimeException {
      */
     public XPoolException(String message, Throwable cause) {
         super(message, cause);
+    }
+
+    /**
+     * Returns a string representation of this exception.
+     * 
+     * @return A string representation of the exception.
+     */
+    @Override
+    public String toString() {
+        return "XPoolException{message='" + getMessage() + "'}";
     }
 }

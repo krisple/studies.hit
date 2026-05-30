@@ -12,29 +12,16 @@ public class WorkerThread extends Thread {
     /**
      * The shared queue from which tasks are retrieved.
      */
-    private Queue<Task> tasksQueue;
+    private Queue<Task> tasks;
 
     /**
      * Primary constructor for WorkerThread.
      * 
-     * @param queue The shared tasks queue to monitor and consume from.
+     * @param tasks The shared tasks queue to monitor and consume from.
      */
-    public WorkerThread(Queue<Task> queue) {
+    public WorkerThread(Queue<Task> tasks) {
         super();
-
-        // Validating and assigning final tasksQueue field
-        if (queue == null) {
-            throw new XPoolException("Tasks queue cannot be null");
-        }
-        setTasksQueue(queue);
-    }
-
-    /**
-     * Sets the tasks queue for this worker.
-     * * @param queue The queue to be assigned.
-     */
-    private void setTasksQueue(Queue<Task> queue) {
-        this.tasksQueue = queue;
+        setTasks(tasks);
     }
 
     /**
@@ -46,24 +33,23 @@ public class WorkerThread extends Thread {
         while (true) {
             Task taskToExecute = null;
 
-            // acquiring the lock to safely retrieve the next task
-            synchronized (tasksQueue) {
-                while (tasksQueue.isEmpty()) {
+            // Synchronize access while checking and polling the shared queue.
+            synchronized (tasks) {
+                while (tasks.isEmpty()) {
                     try {
-                        // waiting for a notification that a new task has arrived
-                        tasksQueue.wait();
-                    } catch (InterruptedException e) {
-                        // restoring interrupted status and exiting loop if necessary
+                        // Wait while the queue is empty and release the monitor for submitting threads.
+                        tasks.wait();
+                    } catch (InterruptedException exception) {
+                        // Restore the interrupt flag before terminating this worker.
                         Thread.currentThread().interrupt();
                         return;
                     }
                 }
 
-                // extracting the highest priority task
-                taskToExecute = tasksQueue.poll();
+                taskToExecute = tasks.poll();
             }
 
-            // executing the task outside the synchronized block to avoid blocking the queue
+            // Execute outside the synchronized block so other workers can retrieve tasks.
             if (taskToExecute != null) {
                 performTask(taskToExecute);
             }
@@ -71,16 +57,49 @@ public class WorkerThread extends Thread {
     }
 
     /**
+     * Returns a string representation of this worker thread.
+     * 
+     * @return A string representation of the worker thread.
+     */
+    @Override
+    public String toString() {
+        return "WorkerThread{name='" + getName() + "'}";
+    }
+
+    /**
      * Executes the given task and handles any potential runtime errors.
      * 
      * @param task The task to be performed.
+     * @throws XPoolException if the task is null.
      */
     private void performTask(Task task) {
+        if (task == null) {
+            throw new XPoolException("Task cannot be null");
+        }
+
         try {
             task.perform();
-        } catch (RuntimeException e) {
-            System.err.println("Exception occurred during task execution in worker " + getName());
-            e.printStackTrace();
         }
+        /*
+         * Tasks are provided by external clients. Catching RuntimeException prevents
+         * one failed task from terminating the worker thread.
+         */
+        catch (RuntimeException exception) {
+            System.err.println("Exception occurred during task execution in worker " + this);
+            exception.printStackTrace();
+        }
+    }
+
+    /**
+     * Sets the tasks queue for this worker.
+     * 
+     * @param tasks The queue to be assigned.
+     * @throws XPoolException if the tasks queue is null.
+     */
+    private void setTasks(Queue<Task> tasks) {
+        if (tasks == null) {
+            throw new XPoolException("Tasks queue cannot be null");
+        }
+        this.tasks = tasks;
     }
 }

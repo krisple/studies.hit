@@ -17,18 +17,17 @@ public class TaskComparator implements Comparator<Task> {
 
     /**
      * Compares two tasks based on their priority levels.
-     * Uses Integer.compare to prevent potential overflow from subtraction.
      * 
-     * @param firstTask  The first task to compare.
-     * @param secondTask The second task to compare.
+     * @param first  The first task to compare.
+     * @param second The second task to compare.
      * @return A negative integer if the first task has higher priority,
      *         a positive integer if the second task has higher priority,
      *         or zero if they are equal.
+     * @throws XPoolException if either of the compared tasks is null.
      */
     @Override
-    public int compare(Task firstTask, Task secondTask) {
-        // validating arguments
-        if (firstTask == null || secondTask == null) {
+    public int compare(Task first, Task second) {
+        if (first == null || second == null) {
             throw new XPoolException("Cannot compare null task objects");
         }
 
@@ -36,6 +35,16 @@ public class TaskComparator implements Comparator<Task> {
          * We use Integer.compare(second, first) to achieve descending order.
          * This avoids overflow issues that can occur with direct subtraction.
          */
-        return Integer.compare(secondTask.getPriority(), firstTask.getPriority());
+        return Integer.compare(second.getPriority(), first.getPriority());
+    }
+
+    /**
+     * Returns a string representation of this task comparator.
+     * 
+     * @return A string representation of the comparator.
+     */
+    @Override
+    public String toString() {
+        return "TaskComparator{}";
     }
 }

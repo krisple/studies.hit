@@ -1,6 +1,7 @@
 package il.ac.hit.xpool;
 
 import java.util.PriorityQueue;
+import java.util.Queue;
 
 /**
  * A pool of worker threads that manages task execution based on priority.
@@ -9,9 +10,9 @@ import java.util.PriorityQueue;
 public class ThreadsPool {
 
     /**
-     * The shared priority queue for storing submitted tasks.
+     * The shared priority-based queue for storing submitted tasks.
      */
-    private PriorityQueue<Task> tasksQueue;
+    private Queue<Task> tasks;
 
     /**
      * Primary constructor for ThreadsPool.
@@ -22,36 +23,13 @@ public class ThreadsPool {
     public ThreadsPool(int numberOfThreads) {
         super();
 
-        // initializing the task queue with priority-based ordering via setter
-        setTasksQueue(new PriorityQueue<>(new TaskComparator()));
+        // PriorityQueue is utilized to ensure tasks are processed dynamically by
+        // descending priority.
+        setTasks(new PriorityQueue<>(new TaskComparator()));
 
-        // validating and initializing workers
+        // Worker threads are initialized and started immediately to prepare the pool
+        // for execution.
         initializePool(numberOfThreads);
-    }
-
-    /**
-     * Sets the tasks queue for the pool.
-     * * @param tasksQueue The priority queue to be assigned.
-     */
-    private void setTasksQueue(PriorityQueue<Task> tasksQueue) {
-        this.tasksQueue = tasksQueue;
-    }
-
-    /**
-     * Initializes the worker threads and starts them.
-     * 
-     * @param count The number of threads to create.
-     */
-    private void initializePool(int count) {
-        if (count <= 0) {
-            throw new XPoolException("Number of threads must be greater than zero");
-        }
-
-        for (int i = 0; i < count; i++) {
-            WorkerThread worker = new WorkerThread(tasksQueue);
-            worker.setName("xpool-worker-" + i);
-            worker.start();
-        }
     }
 
     /**
@@ -59,17 +37,59 @@ public class ThreadsPool {
      * Tasks are executed based on their priority level.
      * 
      * @param task The unit of work to be performed.
+     * @throws XPoolException if the task is null.
      */
     public void submit(Task task) {
-        // validating the task
         if (task == null) {
             throw new XPoolException("Cannot submit a null task");
         }
 
-        // safely adding the task to the queue and notifying a waiting worker
-        synchronized (tasksQueue) {
-            tasksQueue.add(task);
-            tasksQueue.notify();
+        // Synchronize queue access before adding a task and notifying a worker.
+        synchronized (tasks) {
+            tasks.add(task);
+            tasks.notify();
         }
+    }
+
+    /**
+     * Returns a string representation of this threads pool.
+     * 
+     * @return A string representation of the threads pool.
+     */
+    @Override
+    public String toString() {
+        return "ThreadsPool{tasks=" + tasks + "}";
+    }
+
+    /**
+     * Initializes the worker threads and starts them.
+     * 
+     * @param count The number of threads to create.
+     * @throws XPoolException if the thread count is less than or equal to zero.
+     */
+    private void initializePool(int count) {
+        if (count <= 0) {
+            throw new XPoolException("Number of threads must be greater than zero");
+        }
+
+        // Create and start the worker threads.
+        for (int i = 0; i < count; i++) {
+            WorkerThread worker = new WorkerThread(tasks);
+            worker.setName("xpool-worker-" + i);
+            worker.start();
+        }
+    }
+
+    /**
+     * Sets the tasks queue for the pool.
+     * 
+     * @param tasks The priority queue to be assigned.
+     * @throws XPoolException if the tasks queue is null.
+     */
+    private void setTasks(Queue<Task> tasks) {
+        if (tasks == null) {
+            throw new XPoolException("Tasks queue cannot be null");
+        }
+        this.tasks = tasks;
     }
 }
