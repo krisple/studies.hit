@@ -9,23 +9,23 @@ class ComplexValidationFlowTest {
     void testHighlyComplexValidUserFlow() {
         User user = new User("administrator", "super_admin_very_long@department.co.il", "Admin123$secure!", 120);
 
-        UserValidation isEmailValid = UserValidation.emailEndsWithIL().and(UserValidation.emailLengthBiggerThan10());
+        UserValidation emailValidation = UserValidation.emailEndsWithIL().and(UserValidation.emailLengthBiggerThan10());
         
-        UserValidation isPasswordValid = UserValidation.all(
+        UserValidation passwordValidation = UserValidation.all(
                 UserValidation.passwordLengthBiggerThan8(),
                 UserValidation.passwordIsDifferentFromUsername()
         ).and(
                 UserValidation.passwordIncludesDollarSign().or(UserValidation.passwordIncludesLettersNumbersOnly())
         );
 
-        UserValidation isUserValid = UserValidation.all(
-                isEmailValid,
-                isPasswordValid,
+        UserValidation userValidation = UserValidation.all(
+                emailValidation,
+                passwordValidation,
                 UserValidation.usernameLengthBiggerThan8(),
                 UserValidation.ageBiggerThan18()
         );
 
-        ValidationResult result = isUserValid.apply(user);
+        ValidationResult result = userValidation.apply(user);
         assertTrue(result.isValid(), "User should be perfectly valid in this highly complex scenario");
     }
 

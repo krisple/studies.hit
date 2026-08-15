@@ -123,11 +123,11 @@ class UserValidationTest {
 
     @Test
     void testAndCombinatorShortCircuit() {
-        boolean[] secondValidationExecuted = {false};
+        boolean[] isSecondValidationExecuted = {false};
         
         UserValidation firstInvalid = user -> new Invalid("First failed");
         UserValidation secondValidation = user -> {
-            secondValidationExecuted[0] = true;
+            isSecondValidationExecuted[0] = true;
             return new Valid();
         };
 
@@ -136,7 +136,7 @@ class UserValidationTest {
         ValidationResult result = firstInvalid.and(secondValidation).apply(dummyUser);
         
         assertFalse(result.isValid());
-        assertFalse(secondValidationExecuted[0]);
+        assertFalse(isSecondValidationExecuted[0]);
     }
 
     @Test
@@ -159,11 +159,11 @@ class UserValidationTest {
 
     @Test
     void testOrCombinatorShortCircuit() {
-        boolean[] secondValidationExecuted = {false};
+        boolean[] isSecondValidationExecuted = {false};
         
         UserValidation firstValid = user -> new Valid();
         UserValidation secondValidation = user -> {
-            secondValidationExecuted[0] = true;
+            isSecondValidationExecuted[0] = true;
             return new Invalid("Second failed");
         };
 
@@ -172,7 +172,7 @@ class UserValidationTest {
         ValidationResult result = firstValid.or(secondValidation).apply(dummyUser);
         
         assertTrue(result.isValid());
-        assertFalse(secondValidationExecuted[0]);
+        assertFalse(isSecondValidationExecuted[0]);
     }
 
     @Test
@@ -194,11 +194,11 @@ class UserValidationTest {
 
     @Test
     void testXorCombinatorEvaluatesBoth() {
-        boolean[] secondValidationExecuted = {false};
+        boolean[] isSecondValidationExecuted = {false};
         
         UserValidation firstValid = user -> new Valid();
         UserValidation secondValidation = user -> {
-            secondValidationExecuted[0] = true;
+            isSecondValidationExecuted[0] = true;
             return new Valid();
         };
 
@@ -207,7 +207,7 @@ class UserValidationTest {
         ValidationResult result = firstValid.xor(secondValidation).apply(dummyUser);
         
         assertFalse(result.isValid());
-        assertTrue(secondValidationExecuted[0]);
+        assertTrue(isSecondValidationExecuted[0]);
     }
     
     @Test
@@ -218,12 +218,12 @@ class UserValidationTest {
 
     @Test
     void testAllCombinatorShortCircuit() {
-        boolean[] thirdValidationExecuted = {false};
+        boolean[] isThirdValidationExecuted = {false};
         
         UserValidation firstValid = user -> new Valid();
         UserValidation secondInvalid = user -> new Invalid("Second failed");
         UserValidation thirdValidation = user -> {
-            thirdValidationExecuted[0] = true;
+            isThirdValidationExecuted[0] = true;
             return new Valid();
         };
 
@@ -232,7 +232,7 @@ class UserValidationTest {
         ValidationResult result = UserValidation.all(firstValid, secondInvalid, thirdValidation).apply(dummyUser);
         
         assertFalse(result.isValid());
-        assertFalse(thirdValidationExecuted[0]);
+        assertFalse(isThirdValidationExecuted[0]);
     }
     
     @Test
@@ -245,12 +245,12 @@ class UserValidationTest {
 
     @Test
     void testNoneCombinatorShortCircuit() {
-        boolean[] thirdValidationExecuted = {false};
+        boolean[] isThirdValidationExecuted = {false};
         
         UserValidation firstInvalid = user -> new Invalid("First failed");
         UserValidation secondValid = user -> new Valid();
         UserValidation thirdValidation = user -> {
-            thirdValidationExecuted[0] = true;
+            isThirdValidationExecuted[0] = true;
             return new Invalid("Third failed");
         };
 
@@ -259,7 +259,7 @@ class UserValidationTest {
         ValidationResult result = UserValidation.none(firstInvalid, secondValid, thirdValidation).apply(dummyUser);
         
         assertFalse(result.isValid());
-        assertFalse(thirdValidationExecuted[0]);
+        assertFalse(isThirdValidationExecuted[0]);
     }
     
     @Test
@@ -268,5 +268,114 @@ class UserValidationTest {
         
         UserValidation firstInvalid = user -> new Invalid("First failed");
         assertThrows(ValidationException.class, () -> UserValidation.none(firstInvalid, null));
+    }
+
+    @Test
+    void testAndCombinatorValidAndValid() {
+        UserValidation firstValid = user -> new Valid();
+        UserValidation secondValid = user -> new Valid();
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = firstValid.and(secondValid).apply(dummyUser);
+        
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void testAndCombinatorInvalidAndInvalid() {
+        UserValidation firstInvalid = user -> new Invalid("First failed");
+        UserValidation secondInvalid = user -> new Invalid("Second failed");
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = firstInvalid.and(secondInvalid).apply(dummyUser);
+        
+        assertFalse(result.isValid());
+        assertEquals("First failed", result.getReason().get());
+    }
+
+    @Test
+    void testOrCombinatorInvalidOrInvalid() {
+        UserValidation firstInvalid = user -> new Invalid("First failed");
+        UserValidation secondInvalid = user -> new Invalid("Second failed");
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = firstInvalid.or(secondInvalid).apply(dummyUser);
+        
+        assertFalse(result.isValid());
+        assertEquals("First failed", result.getReason().get());
+    }
+
+    @Test
+    void testXorCombinatorValidXorInvalid() {
+        UserValidation firstValid = user -> new Valid();
+        UserValidation secondInvalid = user -> new Invalid("Second failed");
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = firstValid.xor(secondInvalid).apply(dummyUser);
+        
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void testXorCombinatorInvalidXorValid() {
+        UserValidation firstInvalid = user -> new Invalid("First failed");
+        UserValidation secondValid = user -> new Valid();
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = firstInvalid.xor(secondValid).apply(dummyUser);
+        
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void testXorCombinatorInvalidAndInvalid() {
+        UserValidation firstInvalid = user -> new Invalid("First failed");
+        UserValidation secondInvalid = user -> new Invalid("Second failed");
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = firstInvalid.xor(secondInvalid).apply(dummyUser);
+        
+        assertFalse(result.isValid());
+        assertEquals("XOR failed because both validations failed", result.getReason().get());
+    }
+
+    @Test
+    void testAllCombinatorEmpty() {
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = UserValidation.all().apply(dummyUser);
+        
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void testAllCombinatorAllValid() {
+        UserValidation firstValid = user -> new Valid();
+        UserValidation secondValid = user -> new Valid();
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = UserValidation.all(firstValid, secondValid).apply(dummyUser);
+        
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void testNoneCombinatorEmpty() {
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = UserValidation.none().apply(dummyUser);
+        
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void testNoneCombinatorAllInvalid() {
+        UserValidation firstInvalid = user -> new Invalid("First failed");
+        UserValidation secondInvalid = user -> new Invalid("Second failed");
+        User dummyUser = new User("username", "test@test.co.il", "password", 20);
+
+        ValidationResult result = UserValidation.none(firstInvalid, secondInvalid).apply(dummyUser);
+        
+        assertTrue(result.isValid());
     }
 }
