@@ -1,0 +1,25 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+
+# Antigravity
+.agents/
+
+# Java
+*.class
+*.log
+
+# Temporary Maven setup used only for testing
+pom.xml
+target/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
