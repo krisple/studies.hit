@@ -328,7 +328,7 @@ class UserValidationTest {
     }
 
     @Test
-    void testXorCombinatorInvalidAndInvalid() {
+    void testXorCombinatorInvalidXorInvalid() {
         UserValidation firstInvalid = user -> new Invalid("First failed");
         UserValidation secondInvalid = user -> new Invalid("Second failed");
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
