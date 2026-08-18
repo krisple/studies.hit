@@ -57,6 +57,7 @@ export function convertCurrency(amount, fromCurrency, toCurrency, rates) {
 // Every invocation performs one fresh request and returns validated rates without retaining them.
 export async function fetchExchangeRates(ratesUrl = 'rates.json') {
     try {
+        // The browser may apply its normal HTTP cache optimization to this network request.
         const ratesResponse = await fetch(ratesUrl);
 
         // We reject the promise directly on HTTP failure to avoid parsing invalid bodies.
