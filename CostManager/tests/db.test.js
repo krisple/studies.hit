@@ -20,6 +20,7 @@ describe('db.module.js logic', () => {
         expect(() => db.openCostsDB('testdb', Infinity)).toThrow('databaseName must be a string and databaseVersion must be a finite number');
     });
 
+    // The returned instance must expose both operations from the temporary DB contract.
     test('openCostsDB returns an object with addCost and getReport methods', () => {
         const costsDb = db.openCostsDB('testdb', 1);
 
@@ -30,6 +31,7 @@ describe('db.module.js logic', () => {
         expect(typeof costsDb.getReport).toBe('function');
     });
 
+    // Public and persisted cost shapes are verified together for one insertion.
     test('addCost stores a dated cost and returns only the public cost fields', () => {
         const costsDb = db.openCostsDB('testdb', 1);
 
@@ -41,6 +43,7 @@ describe('db.module.js logic', () => {
             description: 'pizza'
         };
 
+        // Adding the fixture creates both the public response and persisted record.
         const addedCost = costsDb.addCost(newCost);
 
         // The return contract excludes the internally attached date.
@@ -51,6 +54,7 @@ describe('db.module.js logic', () => {
             description: 'pizza'
         });
 
+        // Reading storage directly verifies fields intentionally omitted from the response.
         const storedCosts = JSON.parse(localStorage.getItem('costsdb_testdb'));
 
         // Persistence retains the full date needed for later monthly filtering.
@@ -217,6 +221,7 @@ describe('db.module.js logic', () => {
         expect(() => costsDb.getReport('USD', undefined, undefined, { USD: 1, ILS: '3.4' })).toThrow('Exchange rates are missing or invalid');
     });
 
+    // Identity conversion verifies that rates remain optional when no exchange is needed.
     test('getReport needs no rates when all costs already use the target currency', () => {
         const costsDb = db.openCostsDB('testdb', 1);
         costsDb.addCost({ sum: 100, currency: 'USD', category: 'TEST', description: 'test1' });
@@ -251,6 +256,8 @@ describe('db.module.js logic', () => {
         expect(report.costs.length).toBe(1);
         expect(report.costs[0].description).toBe('past1');
         expect(report.total.sum).toBe(50);
+
+        // Public item dates omit period fields already represented by the report.
         expect(report.costs[0].date).toEqual({ day: 1 });
         expect(report.costs[0].date.month).toBeUndefined();
     });
@@ -271,6 +278,8 @@ describe('db.module.js logic', () => {
         // Distinct storage keys provide direct evidence of instance isolation.
         const firstStoredCosts = JSON.parse(localStorage.getItem('costsdb_firstdb'));
         const secondStoredCosts = JSON.parse(localStorage.getItem('costsdb_seconddb'));
+
+        // Direct storage inspection confirms neither instance crossed database keys.
         expect(firstStoredCosts.length).toBe(1);
         expect(firstStoredCosts[0].description).toBe('apple');
         expect(secondStoredCosts.length).toBe(1);
@@ -290,6 +299,7 @@ describe('db.module.js logic', () => {
         expect(report.total.sum).toBeCloseTo(140);
     });
 
+    // Distinct rate maps make any accidental cross-call caching observable.
     test('separate getReport calls accept different rates without side effects', () => {
         const costsDb = db.openCostsDB('dynamicdb', 1);
         costsDb.addCost({ sum: 100, currency: 'USD', category: 'TEST', description: 'desc' });

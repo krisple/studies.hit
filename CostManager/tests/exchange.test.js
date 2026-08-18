@@ -137,6 +137,7 @@ describe('exchange.js logic', () => {
         errorLogSpy.mockRestore();
     });
 
+    // A rejected fetch must remain observable to the operation that requested rates.
     test('fetchExchangeRates preserves a fetch rejection', async () => {
         global.fetch.mockRejectedValueOnce(new Error('Network error'));
 

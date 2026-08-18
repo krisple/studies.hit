@@ -51,6 +51,7 @@ function getCostsFromStorage(databaseName) {
             }
         });
 
+        // Only the fully validated collection may leave the storage boundary.
         return storedCosts;
     } catch (error) {
         // Surface malformed JSON and structural corruption through one storage-boundary error.
@@ -93,6 +94,7 @@ function validateCostInput(cost) {
 function buildStoredCost(cost) {
     const today = new Date();
 
+    // Caller-owned fields are copied before the storage-only date is attached.
     return {
         sum: cost.sum,
         currency: cost.currency,
@@ -102,6 +104,7 @@ function buildStoredCost(cost) {
         date: {
             day: today.getDate(),
             month: today.getMonth() + 1,
+            // The full year completes the period required for report filtering.
             year: today.getFullYear()
         }
     };
@@ -149,6 +152,7 @@ function mapToReportCost(storedCost) {
     return {
         sum: storedCost.sum,
         currency: storedCost.currency,
+        // Text fields remain unchanged when mapped into the public report shape.
         category: storedCost.category,
         description: storedCost.description,
         date: {
@@ -198,6 +202,7 @@ function openCostsDB(databaseName, databaseVersion) {
         const reportCosts = periodCosts.map(mapToReportCost);
         const convertedTotal = calculateConvertedTotal(periodCosts, currency, rates);
 
+        // Resolved period metadata and converted total share one report response.
         return {
             year: targetYear,
             month: targetMonth,

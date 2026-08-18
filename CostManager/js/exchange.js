@@ -67,6 +67,7 @@ export async function fetchExchangeRates(ratesUrl = 'rates.json') {
         const fetchedRates = await ratesResponse.json();
         validateRates(fetchedRates);
 
+        // Only a fully validated payload may leave the network boundary.
         return fetchedRates;
     } catch (error) {
         // Logging at this boundary helps pinpoint network or parsing issues quickly.

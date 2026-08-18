@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" id="top">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cost to Cost helps you track expenses and understand spending patterns.">
+    <title>cost to cost</title>
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB5PSIuOWVtIiBmb250LXNpemU9IjkwIj7wn4+d77iPPC90ZXh0Pjwvc3ZnPg==">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="site-branding">
+        <a class="brand-logo" href="#top" aria-label="cost to cost home">
+            <span class="brand-emoji" aria-hidden="true">🏝️</span>
+            <span class="brand-logo-content" aria-hidden="true">
+                <span class="logo-letter logo-first-c">C</span>
+                <span class="logo-reveal">ost</span>
+                <span class="logo-bridge">
+                    <span class="logo-two">2</span>
+                    <span class="logo-to">to</span>
+                </span>
+                <span class="logo-letter logo-final-c">C</span>
+                <span class="logo-reveal">ost</span>
+            </span>
+        </a>
+    </div>
+
+    <main class="page-shell">
+        <section class="hero" aria-labelledby="page-title">
+            <h1 id="page-title">From cost to cost, stay on course.</h1>
+        </section>
+
+        <div class="primary-grid">
+            <section id="add-cost" class="panel" aria-labelledby="add-cost-title">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">New entry</p>
+                        <h2 id="add-cost-title">Add Cost</h2>
+                    </div>
+                    <span class="panel-icon" aria-hidden="true">+</span>
+                </div>
+
+                <form id="add-cost-form" class="form-grid">
+                    <div class="field-group">
+                        <label for="cost-sum">Sum</label>
+                        <input id="cost-sum" name="sum" type="number" step="any" placeholder="0.00" required>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="cost-currency">Currency</label>
+                        <select id="cost-currency" name="currency" required>
+                            <option value="USD" selected>USD</option>
+                            <option value="ILS">ILS</option>
+                            <option value="GBP">GBP</option>
+                            <option value="EURO">EURO</option>
+                        </select>
+                    </div>
+
+                    <div class="field-group full-width">
+                        <label for="cost-category">Category</label>
+                        <input id="cost-category" name="category" type="text" list="cost-categories" placeholder="e.g. Food" required>
+                        <datalist id="cost-categories">
+                            <option value="Food"></option>
+                            <option value="Housing"></option>
+                            <option value="Transportation"></option>
+                            <option value="Education"></option>
+                            <option value="Health"></option>
+                            <option value="Entertainment"></option>
+                        </datalist>
+                    </div>
+
+                    <div class="field-group full-width">
+                        <label for="cost-description">Description</label>
+                        <textarea id="cost-description" name="description" rows="3" placeholder="What was this cost for?" required></textarea>
+                    </div>
+
+                    <div class="form-actions full-width">
+                        <p id="add-cost-status" class="form-status" role="status" aria-live="polite"></p>
+                        <button class="button button-primary" type="submit">Add Cost</button>
+                    </div>
+                </form>
+            </section>
+
+            <section id="settings" class="panel settings-panel" aria-labelledby="settings-title">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Exchange rates</p>
+                        <h2 id="settings-title">Settings</h2>
+                    </div>
+                    <span class="panel-icon" aria-hidden="true">↗</span>
+                </div>
+
+                <form id="settings-form">
+                    <div class="field-group">
+                        <label for="rates-url">Exchange-rate URL</label>
+                        <input id="rates-url" name="ratesUrl" type="url" placeholder="https://example.com/rates.json">
+                        <p class="field-hint">Leave blank to use the default rates source.</p>
+                    </div>
+
+                    <div class="source-card">
+                        <span>Current source</span>
+                        <strong id="current-rates-source">rates.json</strong>
+                    </div>
+
+                    <p id="settings-status" class="form-status" role="status" aria-live="polite"></p>
+                    <div class="button-row">
+                        <button id="use-default-rates" class="button button-secondary" type="button">Use Default</button>
+                        <button class="button button-primary" type="submit">Save Settings</button>
+                    </div>
+                </form>
+            </section>
+        </div>
+
+        <section id="reports" class="section-block" aria-labelledby="reports-title">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Monthly detail</p>
+                    <h2 id="reports-title">Detailed Report</h2>
+                </div>
+                <span class="status-pill">USD default</span>
+            </div>
+            <div class="empty-state">
+                <span class="empty-state-icon" aria-hidden="true">≡</span>
+                <h3>Your monthly costs will appear here</h3>
+                <p>Select a period and currency to create a detailed spending report.</p>
+            </div>
+        </section>
+
+        <section id="charts" class="charts-grid" aria-label="Spending charts">
+            <article class="section-block" aria-labelledby="pie-chart-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">By category</p>
+                        <h2 id="pie-chart-title">Pie Chart</h2>
+                    </div>
+                </div>
+                <div class="chart-placeholder" aria-label="Pie chart placeholder">
+                    <span class="pie-placeholder" aria-hidden="true"></span>
+                    <p>Category totals will be shown here.</p>
+                </div>
+            </article>
+
+            <article class="section-block" aria-labelledby="bar-chart-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">By month</p>
+                        <h2 id="bar-chart-title">Bar Chart</h2>
+                    </div>
+                </div>
+                <div class="chart-placeholder" aria-label="Bar chart placeholder">
+                    <span class="bar-placeholder" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                    <p>Annual monthly totals will be shown here.</p>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <p>Ofir Krisple and Almog Shwarts</p>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
