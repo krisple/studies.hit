@@ -21,7 +21,11 @@
           if(result2) {
             console.log("adding 2nd cost item succeeded");
           }
-          const data = ob.getReport("USD");
+
+          /* This keeps the instructor's db.getReport call pattern as a reference.
+             Whether getReport belongs here or on the returned object is pending clarification;
+             vanilla-test-current.html verifies the temporary instance-level contract. */
+          const data = db.getReport("USD");
           console.log(data.total.sum);
         } catch(exception) {
           console.log(exception.message);
