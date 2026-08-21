@@ -1,10 +1,15 @@
 import { jest } from '@jest/globals';
 import db from '../js/db.module.js';
+import { exchangeRateManager } from '../js/exchange-rate-manager.js';
+
+const activeRates = { USD: 1, ILS: 4, GBP: 0.5, EURO: 0.8 };
 
 // These tests exercise the module variant; the Vanilla file is verified separately through its global API.
 describe('db.module.js logic', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         localStorage.clear();
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => activeRates });
+        await exchangeRateManager.setRatesUrl('rates.json');
     });
 
     // No mock behavior should survive into the next storage or report case.
@@ -20,11 +25,11 @@ describe('db.module.js logic', () => {
         expect(() => db.openCostsDB('testdb', Infinity)).toThrow('databaseName must be a string and databaseVersion must be a finite number');
     });
 
-    // The returned instance must expose both operations from the temporary DB contract.
+    // The returned instance must expose both operations from the clarified DB contract.
     test('openCostsDB returns an object with addCost and getReport methods', () => {
         const costsDb = db.openCostsDB('testdb', 1);
 
-        // Both operations belong to the returned database instance under the temporary contract.
+        // Both operations remain on the returned database instance under the required contract.
         expect(costsDb.addCost).toBeDefined();
         expect(typeof costsDb.addCost).toBe('function');
         expect(costsDb.getReport).toBeDefined();
@@ -204,21 +209,16 @@ describe('db.module.js logic', () => {
         expect(report.total.sum).toBe(300);
     });
 
-    // Cross-currency totals must fail explicitly when the caller cannot supply usable rates.
-    test('getReport rejects missing or invalid rates when conversion is needed', () => {
+    // Function arity and call behavior enforce the clarified three-argument API.
+    test('getReport keeps its synchronous three-argument signature', () => {
         const costsDb = db.openCostsDB('testdb', 1);
         costsDb.addCost({ sum: 100, currency: 'ILS', category: 'TEST', description: 'test1' });
 
-        // Source and target rates must both be positive finite numbers for cross-currency totals.
-        expect(() => costsDb.getReport('USD')).toThrow('Exchange rates are missing or invalid');
-        expect(() => costsDb.getReport('USD', undefined, undefined, { USD: 1 })).toThrow('Exchange rates are missing or invalid');
-        expect(() => costsDb.getReport('USD', undefined, undefined, { USD: 1, ILS: -1 })).toThrow('Exchange rates are missing or invalid');
-        expect(() => costsDb.getReport('USD', undefined, undefined, { USD: 1, ILS: 0 })).toThrow('Exchange rates are missing or invalid');
-
-        // Non-finite and non-numeric rates are equally unsafe for the conversion formula.
-        expect(() => costsDb.getReport('USD', undefined, undefined, { USD: 1, ILS: Infinity })).toThrow('Exchange rates are missing or invalid');
-        expect(() => costsDb.getReport('USD', undefined, undefined, { USD: 1, ILS: NaN })).toThrow('Exchange rates are missing or invalid');
-        expect(() => costsDb.getReport('USD', undefined, undefined, { USD: 1, ILS: '3.4' })).toThrow('Exchange rates are missing or invalid');
+        // A direct object result proves the method does not return a Promise.
+        expect(costsDb.getReport.length).toBe(3);
+        const report = costsDb.getReport('USD');
+        expect(report).not.toBeInstanceOf(Promise);
+        expect(report.total.sum).toBe(25);
     });
 
     // Identity conversion verifies that rates remain optional when no exchange is needed.
@@ -287,40 +287,59 @@ describe('db.module.js logic', () => {
     });
 
     // A mixed-currency period verifies conversion at the report-total boundary.
-    test('getReport converts and totals costs using explicitly provided rates', () => {
-        const rates = { USD: 1, ILS: 3.4, GBP: 0.6, EURO: 0.7 };
+    test('getReport converts and totals costs using retained active rates', () => {
         const costsDb = db.openCostsDB('exchangedb', 1);
         costsDb.addCost({ sum: 100, currency: 'USD', category: 'TEST', description: 'desc1' });
         costsDb.addCost({ sum: 340, currency: 'ILS', category: 'TEST', description: 'desc2' });
 
-        // Rates enter only through the temporary fourth report argument.
-        const report = costsDb.getReport('EURO', undefined, undefined, rates);
+        // DB conversion reads the manager snapshot without Fetch or explicit rate passing.
+        const report = costsDb.getReport('EURO');
         expect(report.total.currency).toBe('EURO');
-        expect(report.total.sum).toBeCloseTo(140);
+        expect(report.total.sum).toBeCloseTo(148);
     });
 
-    // Distinct rate maps make any accidental cross-call caching observable.
-    test('separate getReport calls accept different rates without side effects', () => {
+    // Repeated reports reuse the retained snapshot instead of performing new requests.
+    test('separate getReport calls reuse active rates without Fetch', () => {
         const costsDb = db.openCostsDB('dynamicdb', 1);
         costsDb.addCost({ sum: 100, currency: 'USD', category: 'TEST', description: 'desc' });
 
-        // Deliberately distinct rates reveal whether one call leaks state into the next.
-        const firstRates = { USD: 1, ILS: 4 };
-        const secondRates = { USD: 1, ILS: 5 };
-
-        // Different results prove the database instance does not cache an earlier rates object.
-        const firstReport = costsDb.getReport('ILS', undefined, undefined, firstRates);
+        // Both synchronous results use the same rates loaded during test setup.
+        const firstReport = costsDb.getReport('ILS');
+        const secondReport = costsDb.getReport('ILS');
         expect(firstReport.total.sum).toBeCloseTo(400);
-        const secondReport = costsDb.getReport('ILS', undefined, undefined, secondRates);
-        expect(secondReport.total.sum).toBeCloseTo(500);
+        expect(secondReport.total.sum).toBeCloseTo(400);
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    // Replacement loading must not interrupt synchronous reports backed by valid memory.
+    test('getReport keeps using valid rates while replacement loading is pending', async () => {
+        let resolveReplacement;
+        const replacementFetch = new Promise((resolve) => {
+            resolveReplacement = resolve;
+        });
+        // The deferred Fetch keeps the replacement unresolved during the first report call.
+        global.fetch.mockReturnValueOnce(replacementFetch);
+        const replacementLoad = exchangeRateManager.setRatesUrl('https://example.com/rates.json');
+        const costsDb = db.openCostsDB('pendingdb', 1);
+        costsDb.addCost({ sum: 40, currency: 'ILS', category: 'Food', description: 'Lunch' });
+
+        // The pending replacement cannot make the synchronous report temporarily unavailable.
+        expect(costsDb.getReport('USD').total.sum).toBe(10);
+        resolveReplacement({
+            ok: true,
+            json: async () => ({ USD: 1, ILS: 5, GBP: 0.6, EURO: 0.9 })
+        });
+        await replacementLoad;
+
+        // The next synchronous call uses the newly activated valid snapshot.
+        expect(costsDb.getReport('USD').total.sum).toBe(8);
     });
 
     // Report conversion must never mutate the original values copied into individual cost rows.
     test('getReport preserves original cost values after converting the total', () => {
-        const rates = { USD: 1, ILS: 4 };
         const costsDb = db.openCostsDB('testdb', 1);
         costsDb.addCost({ sum: 100, currency: 'ILS', category: 'TEST', description: 'test1' });
-        const report = costsDb.getReport('USD', undefined, undefined, rates);
+        const report = costsDb.getReport('USD');
 
         // Conversion changes the total only, never the cost values copied into the report.
         expect(report.total.sum).toBe(25);

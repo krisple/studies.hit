@@ -5,6 +5,50 @@
 (function () {
     // The Vanilla API exposes only the factory; each returned object retains its database name.
     const supportedCurrencies = ['USD', 'ILS', 'GBP', 'EURO'];
+    const defaultRatesUrl = 'rates.json';
+    let activeExchangeRates = null;
+
+    // Vanilla validates every required rate before replacing its retained snapshot.
+    function validateRates(rates) {
+        if (!rates || typeof rates !== 'object') {
+            throw new Error('Rates must be an object');
+        }
+
+        supportedCurrencies.forEach((currency) => {
+            const rate = rates[currency];
+
+            // Invalid payloads must never displace the last successfully loaded rates.
+            if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) {
+                throw new Error(`Invalid or missing rate for ${currency}`);
+            }
+        });
+    }
+
+    // The standalone script performs one default-source load and retains its valid result.
+    async function loadExchangeRates() {
+        const ratesResponse = await fetch(defaultRatesUrl);
+
+        if (!ratesResponse.ok) {
+            throw new Error(`Failed to fetch rates: ${ratesResponse.statusText}`);
+        }
+
+        const fetchedRates = await ratesResponse.json();
+        validateRates(fetchedRates);
+
+        // The standalone library has one fixed source, so every valid response is usable.
+        activeExchangeRates = Object.freeze({ ...fetchedRates });
+
+        return activeExchangeRates;
+    }
+
+    // Synchronous consumers either receive retained rates or a clear initial-load error.
+    function getActiveExchangeRates() {
+        if (activeExchangeRates === null) {
+            throw new Error('Exchange rates have not loaded yet');
+        }
+
+        return activeExchangeRates;
+    }
 
     // Storage reads distinguish a missing database from present but corrupted content.
     function getCostsFromStorage(databaseName) {
@@ -173,7 +217,7 @@
             return Number(amount);
         }
 
-        // Rates remain an explicit call dependency and are never retained by this library.
+        // The caller supplies the retained in-memory snapshot only when conversion is needed.
         if (!rates || typeof rates !== 'object') {
             throw new Error(`Exchange rates are missing or invalid for requested currencies: ${fromCurrency} to ${toCurrency}`);
         }
@@ -192,9 +236,10 @@
         return amountInUsd * toRate;
     }
 
-    // Conversion rates are supplied per call, which keeps the DB object free of rate cache state.
-    function calculateConvertedTotal(costs, targetCurrency, rates) {
+    // Conversion reuses the retained snapshot and never starts a Fetch from getReport.
+    function calculateConvertedTotal(costs, targetCurrency) {
         return costs.reduce((total, cost) => {
+            const rates = cost.currency === targetCurrency ? null : getActiveExchangeRates();
             const convertedAmount = convertCurrency(Number(cost.sum), cost.currency, targetCurrency, rates);
             return total + convertedAmount;
         }, 0);
@@ -218,8 +263,8 @@
             return extractPublicAddedCost(storedCost);
         }
 
-        function getReport(currency, year, month, rates) {
-            // The temporary fourth argument remains explicit; this method stays synchronous.
+        function getReport(currency, year, month) {
+            // The original three-argument report contract remains fully synchronous.
             if (typeof currency !== 'string' || !supportedCurrencies.includes(currency)) {
                 throw new Error(`Report currency must be one of the supported currencies: ${supportedCurrencies.join(', ')}`);
             }
@@ -230,7 +275,7 @@
             // Filtering precedes conversion so rates are needed only for costs in the requested period.
             const periodCosts = filterCostsByPeriod(storedCosts, targetYear, targetMonth);
             const reportCosts = periodCosts.map(mapToReportCost);
-            const convertedTotal = calculateConvertedTotal(periodCosts, currency, rates);
+            const convertedTotal = calculateConvertedTotal(periodCosts, currency);
 
             // Resolved period metadata and converted total share one report response.
             return {
@@ -258,4 +303,9 @@
     };
 
     window.db = db;
+
+    // Script evaluation starts the Vanilla library's single default-source request.
+    void loadExchangeRates().catch((error) => {
+        console.error('Initial exchange-rate loading failed:', error);
+    });
 })();

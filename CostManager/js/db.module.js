@@ -1,4 +1,5 @@
 import { convertCurrency } from './exchange.js';
+import { exchangeRateManager } from './exchange-rate-manager.js';
 
 // The module API exposes only the factory; each returned object retains its own database name.
 const supportedCurrencies = ['USD', 'ILS', 'GBP', 'EURO'];
@@ -162,9 +163,10 @@ function mapToReportCost(storedCost) {
     };
 }
 
-// Conversion rates are supplied per call, which keeps the DB object free of rate cache state.
-function calculateConvertedTotal(costs, targetCurrency, rates) {
+// Conversion reads the manager's retained snapshot only when currencies differ.
+function calculateConvertedTotal(costs, targetCurrency) {
     return costs.reduce((total, cost) => {
+        const rates = cost.currency === targetCurrency ? null : exchangeRateManager.getRates();
         const convertedAmount = convertCurrency(Number(cost.sum), cost.currency, targetCurrency, rates);
         return total + convertedAmount;
     }, 0);
@@ -188,8 +190,8 @@ function openCostsDB(databaseName, databaseVersion) {
         return extractPublicAddedCost(storedCost);
     }
 
-    function getReport(currency, year, month, rates) {
-        // The temporary fourth argument remains explicit; this method stays synchronous.
+    function getReport(currency, year, month) {
+        // The original three-argument report contract remains fully synchronous.
         if (typeof currency !== 'string' || !supportedCurrencies.includes(currency)) {
             throw new Error(`Report currency must be one of the supported currencies: ${supportedCurrencies.join(', ')}`);
         }
@@ -200,7 +202,7 @@ function openCostsDB(databaseName, databaseVersion) {
         // Filtering precedes conversion so rates are needed only for costs in the requested period.
         const periodCosts = filterCostsByPeriod(storedCosts, targetYear, targetMonth);
         const reportCosts = periodCosts.map(mapToReportCost);
-        const convertedTotal = calculateConvertedTotal(periodCosts, currency, rates);
+        const convertedTotal = calculateConvertedTotal(periodCosts, currency);
 
         // Resolved period metadata and converted total share one report response.
         return {

@@ -58,7 +58,7 @@
 
                     <div class="field-group full-width">
                         <label for="cost-category">Category</label>
-                        <input id="cost-category" name="category" type="text" list="cost-categories" placeholder="e.g. Food" required>
+                        <input id="cost-category" name="category" type="text" list="cost-categories" autocomplete="off" placeholder="e.g. Food" required>
                         <datalist id="cost-categories">
                             <option value="Food"></option>
                             <option value="Housing"></option>
@@ -166,7 +166,7 @@
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th scope="col">Day</th>
+                                <th scope="col">Date</th>
                                 <th scope="col">Description</th>
                                 <th scope="col">Category</th>
                                 <th scope="col">Original</th>
@@ -264,6 +264,19 @@
             </article>
         </section>
     </main>
+
+    <dialog id="description-dialog" class="description-dialog" aria-labelledby="description-dialog-title">
+        <div class="description-dialog-card">
+            <div class="description-dialog-heading">
+                <div>
+                    <p class="eyebrow">Cost details</p>
+                    <h2 id="description-dialog-title">Full Description</h2>
+                </div>
+                <button id="description-dialog-close" class="description-dialog-close" type="button" aria-label="Close full description">×</button>
+            </div>
+            <p id="description-dialog-text" class="description-dialog-text"></p>
+        </div>
+    </dialog>
 
     <footer class="site-footer">
         <p>Ofir Krisple and Almog Shwarts</p>

@@ -335,6 +335,50 @@ select {
     padding: 0 14px;
 }
 
+select,
+input[list] {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 54px;
+    border-color: rgba(25, 95, 67, 0.28);
+    background-color: #f8faf6;
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18' fill='none'%3E%3Cpath d='m5 7 4 4 4-4' stroke='%2310452f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+        linear-gradient(90deg, rgba(214, 239, 127, 0.18), rgba(214, 239, 127, 0.58));
+    background-repeat: no-repeat, no-repeat;
+    background-position: right 14px center, right center;
+    background-size: 18px, 46px 100%;
+    box-shadow: inset 3px 0 0 rgba(25, 95, 67, 0.12), 0 2px 8px rgba(30, 58, 42, 0.05);
+    color-scheme: light;
+    cursor: pointer;
+}
+
+select:hover,
+input[list]:hover {
+    border-color: rgba(25, 95, 67, 0.58);
+    background-color: var(--color-surface);
+    box-shadow: inset 3px 0 0 rgba(25, 95, 67, 0.2), 0 5px 14px rgba(30, 58, 42, 0.08);
+}
+
+select:disabled {
+    color: var(--color-muted);
+    background-color: var(--color-surface-soft);
+    cursor: not-allowed;
+    opacity: 0.72;
+}
+
+select option {
+    color: var(--color-text);
+    background: var(--color-surface);
+}
+
+input[list]::-webkit-calendar-picker-indicator {
+    width: 42px;
+    margin-right: -42px;
+    opacity: 0;
+    cursor: pointer;
+}
+
 textarea {
     min-height: 98px;
     padding: 12px 14px;
@@ -345,8 +389,13 @@ input:focus,
 select:focus,
 textarea:focus {
     border-color: var(--color-accent);
-    background: var(--color-surface);
+    background-color: var(--color-surface);
     box-shadow: 0 0 0 3px rgba(25, 95, 67, 0.12);
+}
+
+select:focus,
+input[list]:focus {
+    box-shadow: 0 0 0 3px rgba(25, 95, 67, 0.14), 0 6px 18px rgba(30, 58, 42, 0.08);
 }
 
 .field-hint {
@@ -502,6 +551,171 @@ textarea:focus {
     height: 42px;
 }
 
+/* The native control keeps its form value while the custom component owns presentation. */
+.native-dropdown-control {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0 !important;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.custom-dropdown {
+    position: relative;
+    width: 100%;
+}
+
+.custom-dropdown-trigger,
+.custom-dropdown-input {
+    width: 100%;
+    height: 48px;
+    border: 1px solid rgba(25, 95, 67, 0.3);
+    border-radius: var(--radius-medium);
+    color: var(--color-text);
+    background: #ffffff;
+    box-shadow: inset 3px 0 0 rgba(25, 95, 67, 0.13), 0 3px 10px rgba(30, 58, 42, 0.06);
+    font: inherit;
+    transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.custom-dropdown-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 8px 0 14px;
+    cursor: pointer;
+}
+
+.custom-dropdown-value {
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.custom-dropdown-chevron {
+    display: grid;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border-radius: 10px;
+    color: var(--color-accent-dark);
+    background: rgba(214, 239, 127, 0.56);
+    transition: background 160ms ease;
+}
+
+.custom-dropdown-chevron::before {
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    content: "";
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 160ms ease;
+}
+
+.custom-combobox .custom-dropdown-chevron {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+.custom-dropdown-input {
+    padding: 0 54px 0 14px;
+    cursor: text;
+}
+
+.custom-dropdown-trigger:hover,
+.custom-dropdown-input:hover,
+.custom-dropdown.is-open .custom-dropdown-trigger,
+.custom-dropdown.is-open .custom-dropdown-input {
+    border-color: rgba(25, 95, 67, 0.7);
+    background: #fbfdf9;
+    box-shadow: inset 3px 0 0 rgba(25, 95, 67, 0.24), 0 7px 18px rgba(30, 58, 42, 0.1);
+}
+
+.custom-dropdown-trigger:focus-visible,
+.custom-dropdown-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(25, 95, 67, 0.14), 0 7px 18px rgba(30, 58, 42, 0.09);
+}
+
+.custom-dropdown.is-open .custom-dropdown-chevron {
+    background: var(--color-highlight);
+}
+
+.custom-dropdown.is-open .custom-dropdown-chevron::before {
+    transform: translateY(2px) rotate(225deg);
+}
+
+.custom-dropdown-menu {
+    position: absolute;
+    z-index: 50;
+    top: calc(100% + 8px);
+    right: 0;
+    left: 0;
+    display: grid;
+    gap: 4px;
+    max-height: 250px;
+    padding: 7px;
+    overflow-y: auto;
+    border: 1px solid rgba(25, 95, 67, 0.22);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 18px 38px rgba(22, 48, 35, 0.18);
+}
+
+.custom-dropdown-menu[hidden] {
+    display: none;
+}
+
+.custom-dropdown-option {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 11px;
+    border: 0;
+    border-radius: 9px;
+    color: var(--color-text);
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.custom-dropdown-option:hover,
+.custom-dropdown-option:focus-visible {
+    outline: none;
+    color: var(--color-accent-dark);
+    background: rgba(214, 239, 127, 0.42);
+}
+
+.custom-dropdown-option.is-selected {
+    color: #ffffff;
+    background: var(--color-accent);
+    font-weight: 750;
+}
+
+.compact-field .custom-dropdown-trigger,
+.compact-field .custom-dropdown-input {
+    height: 42px;
+}
+
+.compact-field .custom-dropdown-chevron {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+}
+
 .selection-button {
     min-height: 42px;
     white-space: nowrap;
@@ -528,8 +742,27 @@ textarea:focus {
 
 .report-table {
     width: 100%;
+    min-width: 760px;
     border-collapse: collapse;
     font-size: 0.84rem;
+    table-layout: fixed;
+}
+
+.report-table th:nth-child(1) {
+    width: 14%;
+}
+
+.report-table th:nth-child(2) {
+    width: 36%;
+}
+
+.report-table th:nth-child(3) {
+    width: 18%;
+}
+
+.report-table th:nth-child(4),
+.report-table th:nth-child(5) {
+    width: 16%;
 }
 
 .report-table th,
@@ -545,6 +778,113 @@ textarea:focus {
     font-size: 0.72rem;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+}
+
+.report-description-cell {
+    overflow-wrap: anywhere;
+}
+
+.description-preview-button {
+    display: grid;
+    gap: 5px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--color-text);
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.description-preview-button:hover,
+.description-preview-button:focus-visible {
+    outline: none;
+    border-color: rgba(25, 95, 67, 0.25);
+    background: rgba(214, 239, 127, 0.22);
+}
+
+.description-preview-text {
+    line-height: 1.45;
+}
+
+.description-preview-action {
+    color: var(--color-accent);
+    font-size: 0.72rem;
+    font-weight: 750;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.description-dialog {
+    width: min(580px, calc(100vw - 32px));
+    max-height: min(76vh, 680px);
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid rgba(25, 95, 67, 0.22);
+    border-radius: 20px;
+    color: var(--color-text);
+    background: #ffffff;
+    box-shadow: 0 28px 70px rgba(17, 42, 29, 0.28);
+}
+
+.description-dialog::backdrop {
+    background: rgba(13, 29, 21, 0.55);
+    backdrop-filter: blur(3px);
+}
+
+.description-dialog-card {
+    padding: 26px;
+}
+
+.description-dialog-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.description-dialog-heading .eyebrow {
+    margin-bottom: 5px;
+}
+
+.description-dialog-heading h2 {
+    font-size: 1.5rem;
+}
+
+.description-dialog-close {
+    display: grid;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 11px;
+    color: var(--color-accent-dark);
+    background: var(--color-highlight);
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.description-dialog-close:hover,
+.description-dialog-close:focus-visible {
+    outline: 3px solid rgba(25, 95, 67, 0.14);
+    background: #c8eb57;
+}
+
+.description-dialog-text {
+    max-height: 48vh;
+    margin: 20px 0 0;
+    overflow-y: auto;
+    color: #34443a;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }
 
 .report-total {

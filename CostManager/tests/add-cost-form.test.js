@@ -59,7 +59,8 @@ describe('Add Cost form', () => {
     test('submitting the form persists the cost and keeps its original currency', () => {
         const { costForm, statusElement } = renderAddCostForm();
         const costsDb = db.openCostsDB('ui-test', 1);
-        initializeAddCostForm(costForm, statusElement, costsDb);
+        const onCostAdded = jest.fn();
+        initializeAddCostForm(costForm, statusElement, costsDb, onCostAdded);
 
         // The submitted values include a non-default currency to expose accidental conversion.
         costForm.elements.sum.value = '84.25';
@@ -90,13 +91,20 @@ describe('Add Cost form', () => {
         expect(costForm.elements.currency.value).toBe('USD');
         expect(statusElement.dataset.state).toBe('success');
         expect(statusElement.textContent).toContain('84.25 GBP');
+        expect(onCostAdded).toHaveBeenCalledTimes(1);
+
+        // Success remains initially, then a later click elsewhere dismisses only that message.
+        document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(statusElement.textContent).toBe('');
+        expect(statusElement.dataset.state).toBeUndefined();
     });
 
     // Validation failure must stop before the mocked database boundary.
     test('invalid input is reported without calling the database', () => {
         const { costForm, statusElement } = renderAddCostForm();
         const costsDb = { addCost: jest.fn() };
-        initializeAddCostForm(costForm, statusElement, costsDb);
+        const onCostAdded = jest.fn();
+        initializeAddCostForm(costForm, statusElement, costsDb, onCostAdded);
 
         // Populate every field except sum to isolate the intended validation failure.
         costForm.elements.currency.value = 'USD';
@@ -106,7 +114,13 @@ describe('Add Cost form', () => {
 
         // Blank sum validation runs before any persistence side effect.
         expect(costsDb.addCost).not.toHaveBeenCalled();
+        // Failed validation cannot notify chart orchestration about a stored cost.
+        expect(onCostAdded).not.toHaveBeenCalled();
         expect(statusElement.dataset.state).toBe('error');
+        expect(statusElement.textContent).toBe('Enter a cost sum');
+
+        // Page clicks must not dismiss validation feedback intended for user correction.
+        document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(statusElement.textContent).toBe('Enter a cost sum');
     });
 

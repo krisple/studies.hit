@@ -1,4 +1,5 @@
 import { defaultRatesUrl, getExchangeRatesUrl, saveExchangeRatesUrl } from './settings.js';
+import { exchangeRateManager } from './exchange-rate-manager.js';
 
 // Keep the displayed source synchronized with the exact URL future fetch operations will use.
 function showCurrentRatesSource(sourceElement, ratesUrl) {
@@ -13,22 +14,51 @@ function showSettingsStatus(statusElement, message, state) {
 }
 
 // Bind storage-backed settings behavior to the dedicated settings panel.
-export function initializeSettingsForm(settingsForm, defaultButton, statusElement, sourceElement, storage = localStorage) {
+export function initializeSettingsForm(
+    settingsForm,
+    defaultButton,
+    statusElement,
+    sourceElement,
+    // Optional boundaries keep storage and rate loading deterministic in tests.
+    storage = localStorage,
+    rateManager = exchangeRateManager
+) {
     const ratesUrlInput = settingsForm.elements.namedItem('ratesUrl');
     const activeRatesUrl = getExchangeRatesUrl(storage);
+    let latestSourceChangeId = 0;
 
     // The blank field represents the default source; custom sources remain editable.
     ratesUrlInput.value = activeRatesUrl === defaultRatesUrl ? '' : activeRatesUrl;
     showCurrentRatesSource(sourceElement, activeRatesUrl);
 
+    async function activateRatesSource(ratesUrl, successMessage) {
+        latestSourceChangeId += 1;
+        const sourceChangeId = latestSourceChangeId;
+        showSettingsStatus(statusElement, 'Loading exchange rates…', 'pending');
+
+        try {
+            // Existing rates remain active inside the manager until this request succeeds.
+            await rateManager.setRatesUrl(ratesUrl);
+            if (sourceChangeId === latestSourceChangeId) {
+                showSettingsStatus(statusElement, successMessage, 'success');
+            }
+        } catch (error) {
+            // A failed replacement leaves both the chosen URL and prior valid rates intact.
+            if (sourceChangeId === latestSourceChangeId) {
+                showSettingsStatus(statusElement, error.message, 'error');
+            }
+        }
+    }
+
+    // Submission persists a validated source before beginning its replacement load.
     function handleSettingsSubmit(event) {
         event.preventDefault();
 
         try {
-            // A setting becomes active only after the shared storage boundary accepts it.
+            // Persistence and Fetch start in the same event turn after validation succeeds.
             const savedRatesUrl = saveExchangeRatesUrl(ratesUrlInput.value, storage);
             showCurrentRatesSource(sourceElement, savedRatesUrl);
-            showSettingsStatus(statusElement, 'Exchange-rate source saved.', 'success');
+            void activateRatesSource(savedRatesUrl, 'Exchange-rate source saved and loaded.');
         } catch (error) {
             // Invalid input remains intact so the user can correct it in place.
             showSettingsStatus(statusElement, error.message, 'error');
@@ -39,9 +69,9 @@ export function initializeSettingsForm(settingsForm, defaultButton, statusElemen
         const savedRatesUrl = saveExchangeRatesUrl('', storage);
         ratesUrlInput.value = '';
 
-        // Resetting is an explicit settings action and receives the same accessible feedback.
+        // Resetting starts an immediate request while the previous snapshot remains available.
         showCurrentRatesSource(sourceElement, savedRatesUrl);
-        showSettingsStatus(statusElement, 'Default exchange-rate source restored.', 'success');
+        void activateRatesSource(savedRatesUrl, 'Default exchange-rate source restored and loaded.');
     }
 
     // Each control receives only the handler for its dedicated settings action.

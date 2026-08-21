@@ -7,16 +7,13 @@
 <body>
     <script src="db.js"></script>
     <script>
-      // These explicit rates belong only to this temporary DB operation verification.
-      const operationRates = { USD: 1, ILS: 3.4, GBP: 0.6, EURO: 0.7 };
-
-      function testTemporaryGlobalApi() {
+      function testClarifiedGlobalApi() {
         try {
           const costsDb = db.openCostsDB('costsdb', 1);
           const firstAddedCost = costsDb.addCost({ sum: 200, currency: 'USD', category: 'FOOD', description: 'pizza' });
           const secondAddedCost = costsDb.addCost({ sum: 400, currency: 'ILS', category: 'CAR', description: 'fuel' });
 
-          // Confirm that the global factory returned the temporary instance-level API.
+          // Confirm that the global factory returned the required instance-level API.
           if (costsDb) {
             console.log('creating db succeeded');
           }
@@ -29,14 +26,15 @@
             console.log('adding 2nd cost item succeeded');
           }
 
-          // The DB receives rates explicitly and retains no rate state after this call.
-          const report = costsDb.getReport('USD', undefined, undefined, operationRates);
+          // getReport remains synchronous and reads rates retained by the Vanilla library.
+          const report = costsDb.getReport('USD');
           console.log(report.total.sum);
         } catch (error) {
           console.log(error.message);
         }
       }
-      testTemporaryGlobalApi();
+      // A brief delay lets the standalone script's startup Fetch normally complete.
+      setTimeout(testClarifiedGlobalApi, 100);
     </script>
 </body>
 </html>

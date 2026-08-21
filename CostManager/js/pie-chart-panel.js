@@ -1,6 +1,6 @@
-import { fetchConfiguredExchangeRates } from './rate-source.js';
 import { readMonthlySelection, setDefaultPeriodSelection } from './period-selection.js';
 import { buildPieChartData } from './report-data.js';
+import { exchangeRateManager } from './exchange-rate-manager.js';
 
 // Pie operation status shares one live region without storing any calculation state.
 function showPieStatus(statusElement, message, state) {
@@ -9,26 +9,21 @@ function showPieStatus(statusElement, message, state) {
 }
 
 // The chart loads immediately and every selection change starts a new update operation.
-export function initializePieChartPanel(chartElements, costsDb, chartRenderer, fetchRates = fetchConfiguredExchangeRates) {
-    let latestOperationId = 0;
+export function initializePieChartPanel(chartElements, costsDb, chartRenderer) {
     setDefaultPeriodSelection(chartElements.form);
 
-    async function updatePieChart() {
-        latestOperationId += 1;
-        const operationId = latestOperationId;
-        showPieStatus(chartElements.statusElement, 'Loading chart…', 'pending');
+    function updatePieChart() {
+        showPieStatus(chartElements.statusElement, 'Creating chart…', 'pending');
 
-        // Each update resolves the currently selected period before requesting its rates.
+        // Each update reads the latest retained rates through synchronous business logic.
         try {
             const selection = readMonthlySelection(chartElements.form);
-            const rates = await fetchRates();
-            const report = costsDb.getReport(selection.currency, selection.year, selection.month, rates);
+            const report = costsDb.getReport(selection.currency, selection.year, selection.month);
+            const hasCurrencyConversion = report.costs.some((cost) => cost.currency !== selection.currency);
 
-            // Aggregation converts original values only in the temporary chart data object.
+            // Pure aggregation receives rates only when at least one cost needs conversion.
+            const rates = hasCurrencyConversion ? exchangeRateManager.getRates() : null;
             const chartData = buildPieChartData(report.costs, selection.currency, rates);
-            if (operationId !== latestOperationId) {
-                return;
-            }
 
             // Rendering replaces the previous chart only when this is still the newest update.
             chartRenderer.render(chartData, selection.currency);
@@ -37,22 +32,34 @@ export function initializePieChartPanel(chartElements, costsDb, chartRenderer, f
                 : 'No costs were found for the selected month.';
             showPieStatus(chartElements.statusElement, statusMessage, 'success');
         } catch (error) {
-            // A superseded request must not replace feedback from a newer selection.
-            if (operationId === latestOperationId) {
-                showPieStatus(chartElements.statusElement, error.message, 'error');
-            }
+            // Failed synchronous updates clear a chart that no longer matches its controls.
+            chartRenderer.clear();
+            showPieStatus(chartElements.statusElement, error.message, 'error');
         }
     }
 
     // Form submission is still prevented if the user presses Enter in the year input.
     function handlePieSubmit(event) {
         event.preventDefault();
-        void updatePieChart();
+        updatePieChart();
+    }
+
+    // Added costs affect this chart only while it displays the current calendar month.
+    function refreshIfCurrentPeriod(today = new Date()) {
+        const selectedYear = Number(chartElements.form.elements.namedItem('year').value);
+        const selectedMonth = Number(chartElements.form.elements.namedItem('month').value);
+        const isCurrentPeriod = selectedYear === today.getFullYear() && selectedMonth === today.getMonth() + 1;
+
+        // Historical selections stay visually stable when current-month storage changes.
+        if (isCurrentPeriod) {
+            updatePieChart();
+        }
     }
 
     // Change covers selects and the year field once its edited value is committed.
     chartElements.form.addEventListener('change', updatePieChart);
     chartElements.form.addEventListener('submit', handlePieSubmit);
     // Initial execution makes the default-period chart visible without user interaction.
-    void updatePieChart();
+    updatePieChart();
+    return { update: updatePieChart, refreshIfCurrentPeriod };
 }

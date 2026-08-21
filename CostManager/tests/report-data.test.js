@@ -13,7 +13,10 @@ const rates = { USD: 1, ILS: 4, GBP: 0.5, EURO: 0.8 };
 // Report transformations are verified independently from DOM and Chart.js behavior.
 describe('report and chart data transformations', () => {
     test('detailed report rows convert display amounts and preserve original cost values', () => {
+        // Report-level period metadata combines with the item-level day for display.
         const report = {
+            year: 2026,
+            month: 5,
             costs: [{
                 sum: 80,
                 currency: 'ILS',
@@ -30,7 +33,7 @@ describe('report and chart data transformations', () => {
 
         // Conversion is added to the view while the report object remains unchanged.
         expect(reportView.rows[0]).toEqual({
-            day: 12,
+            date: { year: 2026, month: 5, day: 12 },
             category: 'Food',
             description: 'Groceries',
             originalSum: 80,
@@ -79,24 +82,24 @@ describe('report and chart data transformations', () => {
         });
     });
 
-    test('annual chart requests every month with one shared operation rates object', () => {
+    test('annual chart requests every month with the synchronous DB signature', () => {
         const costsDb = {
             // The mock total uses month so omitted or duplicated report requests remain visible.
-            getReport: jest.fn((currency, year, month, providedRates) => {
+            getReport: jest.fn((currency, year, month) => {
                 // The fixture makes each month observable in the final ordered totals.
-                return { total: { currency, sum: month * providedRates.USD } };
+                return { total: { currency, sum: month } };
             })
         };
 
-        const annualData = buildAnnualChartData(costsDb, 2026, 'USD', rates);
+        const annualData = buildAnnualChartData(costsDb, 2026, 'USD');
 
         expect(costsDb.getReport).toHaveBeenCalledTimes(12);
         expect(annualData.labels).toEqual(monthLabels);
         expect(annualData.values).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 
-        // Every call receives the same rates identity fetched for this annual operation.
+        // Every call uses exactly the original three report arguments.
         costsDb.getReport.mock.calls.forEach((reportCall, monthIndex) => {
-            expect(reportCall).toEqual(['USD', 2026, monthIndex + 1, rates]);
+            expect(reportCall).toEqual(['USD', 2026, monthIndex + 1]);
         });
     });
 });

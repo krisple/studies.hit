@@ -1,7 +1,12 @@
 import { jest } from '@jest/globals';
-import { fetchConfiguredExchangeRates } from '../js/rate-source.js';
 import { defaultRatesUrl, getExchangeRatesUrl, saveExchangeRatesUrl } from '../js/settings.js';
 import { initializeSettingsForm } from '../js/settings-form.js';
+
+// Two promise turns allow the async settings status handler to finish after a mock resolves.
+async function waitForSettingsUpdate() {
+    await Promise.resolve();
+    await Promise.resolve();
+}
 
 // Settings tests use the same named input and feedback elements as index.html.
 function renderSettingsForm() {
@@ -27,11 +32,10 @@ function renderSettingsForm() {
     };
 }
 
-// Each settings case starts with isolated persistence and a fresh network boundary.
+// Each settings case starts with isolated persistence and manager mocks where needed.
 describe('exchange-rate settings', () => {
     beforeEach(() => {
         localStorage.clear();
-        global.fetch = jest.fn();
     });
 
     afterEach(() => {
@@ -60,28 +64,6 @@ describe('exchange-rate settings', () => {
         expect(() => getExchangeRatesUrl()).toThrow('Enter a valid HTTP or HTTPS URL');
     });
 
-    test('configured rate fetching connects the default setting to a fresh request', async () => {
-        const rates = { USD: 1, ILS: 3.4, GBP: 0.6, EURO: 0.7 };
-        global.fetch.mockResolvedValueOnce({ ok: true, json: async () => rates });
-
-        // The application service resolves the default before delegating to stateless exchange logic.
-        await expect(fetchConfiguredExchangeRates()).resolves.toEqual(rates);
-        expect(global.fetch).toHaveBeenCalledWith(defaultRatesUrl);
-    });
-
-    test('configured rate fetching uses the custom URL saved by Settings', async () => {
-        const rates = { USD: 1, ILS: 3.5, GBP: 0.62, EURO: 0.72 };
-        const customRatesUrl = 'https://example.com/custom-rates.json';
-
-        // Persist the source before starting the independent fetch operation.
-        saveExchangeRatesUrl(customRatesUrl);
-        global.fetch.mockResolvedValueOnce({ ok: true, json: async () => rates });
-
-        // A separate operation reads the current setting without retaining fetched rates.
-        await fetchConfiguredExchangeRates();
-        expect(global.fetch).toHaveBeenCalledWith(customRatesUrl);
-    });
-
     test('saveExchangeRatesUrl rejects invalid or unsupported URLs', () => {
         // Only external HTTP and HTTPS endpoints match the project settings contract.
         expect(() => saveExchangeRatesUrl('not a url')).toThrow('Enter a valid HTTP or HTTPS URL');
@@ -89,8 +71,9 @@ describe('exchange-rate settings', () => {
         expect(getExchangeRatesUrl()).toBe(defaultRatesUrl);
     });
 
-    test('submitting settings updates storage, feedback, and the displayed source', () => {
+    test('submitting settings immediately starts loading the saved source', async () => {
         const settingsElements = renderSettingsForm();
+        const rateManager = { setRatesUrl: jest.fn().mockResolvedValue({ USD: 1 }) };
 
         // Bind production handlers before simulating the custom-source submission.
         initializeSettingsForm(
@@ -98,7 +81,9 @@ describe('exchange-rate settings', () => {
             settingsElements.settingsForm,
             settingsElements.defaultButton,
             settingsElements.statusElement,
-            settingsElements.sourceElement
+            settingsElements.sourceElement,
+            localStorage,
+            rateManager
         );
 
         // A valid custom address should become both stored and visibly active.
@@ -109,19 +94,27 @@ describe('exchange-rate settings', () => {
         settingsElements.settingsForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         expect(getExchangeRatesUrl()).toBe(customRatesUrl);
         expect(settingsElements.sourceElement.textContent).toBe(customRatesUrl);
+        expect(rateManager.setRatesUrl).toHaveBeenCalledWith(customRatesUrl);
+        expect(settingsElements.statusElement.dataset.state).toBe('pending');
+
+        // Successful replacement becomes visible after the manager activates its response.
+        await waitForSettingsUpdate();
         expect(settingsElements.statusElement.dataset.state).toBe('success');
     });
 
     // Reset behavior covers both storage removal and visible form synchronization.
-    test('Use Default removes the custom source and clears the input', () => {
+    test('Use Default removes the custom source and immediately reloads the default', async () => {
         const settingsElements = renderSettingsForm();
+        const rateManager = { setRatesUrl: jest.fn().mockResolvedValue({ USD: 1 }) };
         saveExchangeRatesUrl('https://example.com/rates.json');
         initializeSettingsForm(
             // Initialization must read the custom URL before reset behavior is exercised.
             settingsElements.settingsForm,
             settingsElements.defaultButton,
             settingsElements.statusElement,
-            settingsElements.sourceElement
+            settingsElements.sourceElement,
+            localStorage,
+            rateManager
         );
 
         // Initialization shows the stored source in both the editable and read-only views.
@@ -129,20 +122,26 @@ describe('exchange-rate settings', () => {
         settingsElements.defaultButton.click();
         expect(settingsElements.settingsForm.elements.ratesUrl.value).toBe('');
         expect(settingsElements.sourceElement.textContent).toBe(defaultRatesUrl);
+        expect(rateManager.setRatesUrl).toHaveBeenCalledWith(defaultRatesUrl);
 
         // Both the effective getter and status text must confirm the reset.
         expect(getExchangeRatesUrl()).toBe(defaultRatesUrl);
+        await waitForSettingsUpdate();
         expect(settingsElements.statusElement.textContent).toContain('restored');
     });
 
+    // Invalid form input must stop before persistence or manager activation.
     test('an invalid form URL does not replace the active source', () => {
         const settingsElements = renderSettingsForm();
+        const rateManager = { setRatesUrl: jest.fn() };
         initializeSettingsForm(
             // The same fixture verifies that validation errors leave active state untouched.
             settingsElements.settingsForm,
             settingsElements.defaultButton,
             settingsElements.statusElement,
-            settingsElements.sourceElement
+            settingsElements.sourceElement,
+            localStorage,
+            rateManager
         );
 
         // An unsupported protocol reaches the shared validation boundary on submit.
@@ -153,5 +152,6 @@ describe('exchange-rate settings', () => {
         expect(getExchangeRatesUrl()).toBe(defaultRatesUrl);
         expect(settingsElements.sourceElement.textContent).toBe(defaultRatesUrl);
         expect(settingsElements.statusElement.dataset.state).toBe('error');
+        expect(rateManager.setRatesUrl).not.toHaveBeenCalled();
     });
 });

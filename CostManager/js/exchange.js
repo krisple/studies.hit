@@ -1,4 +1,6 @@
-// Module managing exchange rates and conversions for the application.
+import { applicationConfig } from './config.js';
+
+// Module validating exchange-rate payloads and performing pure conversions.
 
 // Validates the structure and content of fetched exchange rates.
 export function validateRates(rates) {
@@ -55,7 +57,7 @@ export function convertCurrency(amount, fromCurrency, toCurrency, rates) {
 }
 
 // Every invocation performs one fresh request and returns validated rates without retaining them.
-export async function fetchExchangeRates(ratesUrl = 'rates.json') {
+export async function fetchExchangeRates(ratesUrl = applicationConfig.defaultRatesUrl) {
     try {
         // The browser may apply its normal HTTP cache optimization to this network request.
         const ratesResponse = await fetch(ratesUrl);

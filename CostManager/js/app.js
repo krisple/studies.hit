@@ -1,10 +1,15 @@
 import db from './db.module.js';
+import { applicationConfig } from './config.js';
+import { exchangeRateManager } from './exchange-rate-manager.js';
 import { initializeAddCostForm } from './add-cost-form.js';
 import { initializeBarChartPanel } from './bar-chart-panel.js';
 import { createBarChartRenderer, createPieChartRenderer } from './chart-renderer.js';
+import { initializeDropdowns } from './dropdown.js';
+// Panel imports keep document orchestration separate from each UI responsibility.
 import { initializeDetailedReportPanel } from './detailed-report-panel.js';
 import { initializePieChartPanel } from './pie-chart-panel.js';
 import { initializeSettingsForm } from './settings-form.js';
+import { getExchangeRatesUrl } from './settings.js';
 
 // Required-element lookup makes an incomplete application document fail with useful context.
 function getRequiredElement(elementId) {
@@ -25,6 +30,10 @@ function getDetailedReportElements() {
         statusElement: getRequiredElement('detailed-report-status'),
         emptyElement: getRequiredElement('detailed-report-empty'),
         outputElement: getRequiredElement('detailed-report-output'),
+        // One shared dialog serves every expandable description in the report table.
+        dialogElement: getRequiredElement('description-dialog'),
+        dialogTextElement: getRequiredElement('description-dialog-text'),
+        dialogCloseButton: getRequiredElement('description-dialog-close'),
         // Table content and total are the only mutable nodes inside report output.
         tableBody: getRequiredElement('detailed-report-body'),
         totalElement: getRequiredElement('detailed-report-total')
@@ -44,19 +53,19 @@ function getChartElements(chartName) {
 
 // The entry point wires UI modules to one explicit database instance.
 export function initializeApplication() {
-    const costsDb = db.openCostsDB('cost-manager', 1);
+    // Fetch starts before UI wiring; consumers may keep using an earlier valid snapshot.
+    const initialRatesLoad = exchangeRateManager.start(getExchangeRatesUrl());
+    const costsDb = db.openCostsDB(applicationConfig.databaseName, applicationConfig.databaseVersion);
     const addCostForm = getRequiredElement('add-cost-form');
     const addCostStatus = getRequiredElement('add-cost-status');
 
-    // Cost creation owns only form parsing, persistence, and user feedback.
-    initializeAddCostForm(addCostForm, addCostStatus, costsDb);
-
+    // Settings nodes are resolved together before their dedicated form is initialized.
     const settingsForm = getRequiredElement('settings-form');
     const defaultRatesButton = getRequiredElement('use-default-rates');
     const settingsStatus = getRequiredElement('settings-status');
     const currentRatesSource = getRequiredElement('current-rates-source');
 
-    // Settings remain independent from the stateless exchange and database modules.
+    // Settings changes persist their URL and immediately tell the shared manager to fetch it.
     initializeSettingsForm(settingsForm, defaultRatesButton, settingsStatus, currentRatesSource);
 
     const detailedReportElements = getDetailedReportElements();
@@ -65,12 +74,33 @@ export function initializeApplication() {
     // Chart.js is a rendering dependency only; business transformations never access it.
     const pieChartElements = getChartElements('pie');
     const pieChartRenderer = createPieChartRenderer(pieChartElements.canvas, window.Chart);
-    initializePieChartPanel(pieChartElements, costsDb, pieChartRenderer);
+    const pieChartPanel = initializePieChartPanel(pieChartElements, costsDb, pieChartRenderer);
 
     const barChartElements = getChartElements('bar');
     const barChartRenderer = createBarChartRenderer(barChartElements.canvas, window.Chart);
     // The annual panel owns its operation, while its renderer owns only the canvas instance.
-    initializeBarChartPanel(barChartElements, costsDb, barChartRenderer);
+    const barChartPanel = initializeBarChartPanel(barChartElements, costsDb, barChartRenderer);
+
+    // Successful additions refresh only charts whose selections include the current month.
+    function refreshCurrentCharts() {
+        pieChartPanel.refreshIfCurrentPeriod();
+        barChartPanel.refreshIfCurrentPeriod();
+    }
+
+    // Cost creation owns form work and reports successful persistence to chart orchestration.
+    initializeAddCostForm(addCostForm, addCostStatus, costsDb, refreshCurrentCharts);
+    // Enhancement runs last so visible dropdowns reflect every form's initialized defaults.
+    initializeDropdowns(document);
+
+    // Charts refresh whenever startup, replacement, or periodic loading activates new rates.
+    exchangeRateManager.subscribe(() => {
+        pieChartPanel.update();
+        barChartPanel.update();
+    });
+    void initialRatesLoad.catch((error) => {
+        // UI controls remain usable so a corrected settings URL can start another request.
+        console.error('Initial exchange-rate loading failed:', error);
+    });
 }
 
 if (document.readyState === 'loading') {

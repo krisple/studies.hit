@@ -43,13 +43,29 @@ export function buildCostFromForm(costForm) {
 }
 
 // Bind one form to an explicit database instance without introducing shared mutable state.
-export function initializeAddCostForm(costForm, statusElement, costsDb) {
+export function initializeAddCostForm(costForm, statusElement, costsDb, onCostAdded = () => {}) {
+    let hasDismissibleSuccess = false;
+
+    // Only a current success message is cleared by a later click elsewhere on the page.
+    function handlePageClick(event) {
+        if (!hasDismissibleSuccess || statusElement.contains(event.target)) {
+            return;
+        }
+
+        // Clearing state removes both visible feedback and its success-specific styling.
+        statusElement.textContent = '';
+        delete statusElement.dataset.state;
+        hasDismissibleSuccess = false;
+    }
+
+    // Submission retains its existing validation, persistence, and feedback sequence.
     function handleAddCost(event) {
         event.preventDefault();
+        let addedCost;
 
         try {
             const newCost = buildCostFromForm(costForm);
-            const addedCost = costsDb.addCost(newCost);
+            addedCost = costsDb.addCost(newCost);
 
             // Reset only after persistence succeeds so failed input remains available to correct.
             costForm.reset();
@@ -57,11 +73,19 @@ export function initializeAddCostForm(costForm, statusElement, costsDb) {
                 maximumFractionDigits: 2
             });
             showFormStatus(statusElement, `Added ${formattedSum} ${addedCost.currency} to ${addedCost.category}.`, 'success');
+            hasDismissibleSuccess = true;
         } catch (error) {
             // Database and validation failures are presented in the form's live status region.
             showFormStatus(statusElement, error.message, 'error');
+            hasDismissibleSuccess = false;
+            return;
         }
+
+        // Post-success observers run only after persistence and feedback both complete.
+        onCostAdded(addedCost);
     }
 
+    // The listener observes only clicks occurring after submission has established success.
+    document.addEventListener('click', handlePageClick);
     costForm.addEventListener('submit', handleAddCost);
 }

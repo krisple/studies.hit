@@ -7,14 +7,19 @@ export const monthLabels = [
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-// Detailed rows add a converted display amount without changing report-owned values.
+// Detailed rows add converted display amounts without changing report-owned values.
 export function buildDetailedReportView(report, targetCurrency, rates) {
     const rows = report.costs.map((cost) => {
         const convertedSum = convertCurrency(cost.sum, cost.currency, targetCurrency, rates);
 
-        // Original values remain available beside the operation-scoped converted amount.
+        // Original values remain available beside the display-only converted amount.
         return {
-            day: cost.date.day,
+            date: {
+                year: report.year,
+                month: report.month,
+                // The report item supplies only the day under the public DB contract.
+                day: cost.date.day
+            },
             category: cost.category,
             description: cost.description,
             originalSum: cost.sum,
@@ -25,7 +30,7 @@ export function buildDetailedReportView(report, targetCurrency, rates) {
         };
     });
 
-    // The database report already calculated its total with the same fetched rates object.
+    // The database report already calculated its total from the active retained snapshot.
     return {
         rows,
         total: report.total.sum,
@@ -35,13 +40,14 @@ export function buildDetailedReportView(report, targetCurrency, rates) {
 
 // Category aggregation converts each original cost before adding it to its category total.
 export function aggregateCostsByCategory(costs, targetCurrency, rates) {
+    /* A Map groups totals by arbitrary category text without treating category names as
+       object properties. The grouped entries are converted to a sorted array for charts. */
     const categoryTotals = new Map();
 
     costs.forEach((cost) => {
         const convertedSum = convertCurrency(cost.sum, cost.currency, targetCurrency, rates);
         const currentTotal = categoryTotals.get(cost.category) ?? 0;
 
-        // Map keys preserve arbitrary category text without treating it as an object property.
         categoryTotals.set(cost.category, currentTotal + convertedSum);
     });
 
@@ -63,11 +69,11 @@ export function buildPieChartData(costs, targetCurrency, rates) {
     };
 }
 
-// One annual operation reuses its explicitly supplied rates across exactly twelve reports.
-export function buildAnnualChartData(costsDb, year, targetCurrency, rates) {
+// Annual data uses twelve synchronous reports backed by the manager's retained snapshot.
+export function buildAnnualChartData(costsDb, year, targetCurrency) {
     const values = monthLabels.map((monthLabel, monthIndex) => {
         const month = monthIndex + 1;
-        const monthlyReport = costsDb.getReport(targetCurrency, year, month, rates);
+        const monthlyReport = costsDb.getReport(targetCurrency, year, month);
 
         // Only the converted monthly total is needed by the annual chart transformation.
         return monthlyReport.total.sum;

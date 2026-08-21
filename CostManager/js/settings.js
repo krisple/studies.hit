@@ -1,5 +1,7 @@
-// The default relative source ships with the application and requires no saved setting.
-export const defaultRatesUrl = 'rates.json';
+import { applicationConfig } from './config.js';
+
+// Re-exporting the default keeps the settings API focused on effective source selection.
+export const defaultRatesUrl = applicationConfig.defaultRatesUrl;
 const ratesUrlStorageKey = 'costManager_ratesUrl';
 
 // Custom sources must be absolute web URLs because Fetch will contact an external server.
@@ -19,7 +21,7 @@ function validateCustomRatesUrl(customRatesUrl) {
     }
 }
 
-// The application layer calls this for each rate-dependent operation.
+// Application startup reads the effective source once before starting the rate manager.
 export function getExchangeRatesUrl(storage = localStorage) {
     const storedRatesUrl = storage.getItem(ratesUrlStorageKey);
 

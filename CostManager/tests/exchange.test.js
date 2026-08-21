@@ -102,7 +102,7 @@ describe('exchange.js logic', () => {
         expect(fetchedRates).toEqual(ratePayload);
     });
 
-    // Separate application operations invoke this stateless boundary independently.
+    // Explicit calls to this stateless helper each cross the Fetch boundary independently.
     test('fetchExchangeRates performs a fresh request for each separate invocation', async () => {
         const firstRatePayload = { USD: 1, ILS: 3.4, GBP: 0.6, EURO: 0.7 };
         const secondRatePayload = { USD: 1, ILS: 3.5, GBP: 0.61, EURO: 0.71 };
@@ -115,7 +115,7 @@ describe('exchange.js logic', () => {
         const firstFetchedRates = await fetchExchangeRates();
         const secondFetchedRates = await fetchExchangeRates();
 
-        // Two invocations represent two operations and therefore require two network requests.
+        // Two direct helper invocations must produce two network requests.
         expect(global.fetch).toHaveBeenCalledTimes(2);
         expect(global.fetch).toHaveBeenNthCalledWith(1, 'rates.json');
         expect(global.fetch).toHaveBeenNthCalledWith(2, 'rates.json');

@@ -5,8 +5,8 @@ const chartColors = [
 ];
 
 // Chart constructors are checked at render time so the rest of the application stays usable.
-function requireChartConstructor(ChartConstructor) {
-    if (typeof ChartConstructor !== 'function') {
+function requireChartConstructor(chartConstructor) {
+    if (typeof chartConstructor !== 'function') {
         throw new Error('Chart.js failed to load');
     }
 }
@@ -21,7 +21,7 @@ function formatTooltipAmount(context, currency) {
 }
 
 // A renderer owns only the chart attached to its canvas and destroys it before replacement.
-function createChartRenderer(canvas, ChartConstructor, createConfiguration) {
+function createChartRenderer(canvas, chartConstructor, createConfiguration) {
     let chartInstance = null;
 
     function clear() {
@@ -33,11 +33,11 @@ function createChartRenderer(canvas, ChartConstructor, createConfiguration) {
     }
 
     function render(chartData, currency) {
-        requireChartConstructor(ChartConstructor);
+        requireChartConstructor(chartConstructor);
         clear();
 
         // Chart-specific configuration is produced only from explicit render arguments.
-        chartInstance = new ChartConstructor(canvas, createConfiguration(chartData, currency));
+        chartInstance = new chartConstructor(canvas, createConfiguration(chartData, currency));
     }
 
     return { render, clear };
@@ -127,11 +127,11 @@ function createBarConfiguration(chartData, currency) {
 }
 
 // Public factories bind one canvas to one chart type without sharing chart instances.
-export function createPieChartRenderer(canvas, ChartConstructor) {
-    return createChartRenderer(canvas, ChartConstructor, createPieConfiguration);
+export function createPieChartRenderer(canvas, chartConstructor) {
+    return createChartRenderer(canvas, chartConstructor, createPieConfiguration);
 }
 
 // The second factory uses the same lifecycle with the independent bar configuration.
-export function createBarChartRenderer(canvas, ChartConstructor) {
-    return createChartRenderer(canvas, ChartConstructor, createBarConfiguration);
+export function createBarChartRenderer(canvas, chartConstructor) {
+    return createChartRenderer(canvas, chartConstructor, createBarConfiguration);
 }
