@@ -4,7 +4,6 @@ import { exchangeRateManager } from './exchange-rate-manager.js';
 import { initializeAddCostForm } from './add-cost-form.js';
 import { initializeBarChartPanel } from './bar-chart-panel.js';
 import { createBarChartRenderer, createPieChartRenderer } from './chart-renderer.js';
-import { initializeDropdowns } from './dropdown.js';
 // Panel imports keep document orchestration separate from each UI responsibility.
 import { initializeDetailedReportPanel } from './detailed-report-panel.js';
 import { initializePieChartPanel } from './pie-chart-panel.js';
@@ -89,8 +88,6 @@ export function initializeApplication() {
 
     // Cost creation owns form work and reports successful persistence to chart orchestration.
     initializeAddCostForm(addCostForm, addCostStatus, costsDb, refreshCurrentCharts);
-    // Enhancement runs last so visible dropdowns reflect every form's initialized defaults.
-    initializeDropdowns(document);
 
     // Charts refresh whenever startup, replacement, or periodic loading activates new rates.
     exchangeRateManager.subscribe(() => {
