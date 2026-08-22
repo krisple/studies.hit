@@ -75,7 +75,7 @@ describe('exchange.js logic', () => {
 
         // The default path is asserted alongside the validated object returned to the caller.
         const fetchedRates = await fetchExchangeRates();
-        expect(global.fetch).toHaveBeenCalledWith('rates/default/rates.json');
+        expect(global.fetch).toHaveBeenCalledWith('https://cost-2-cost.onrender.com/rates/default/rates.json');
         expect(fetchedRates).toEqual(ratePayload);
     });
 
@@ -104,6 +104,7 @@ describe('exchange.js logic', () => {
 
     // Explicit calls to this stateless helper each cross the Fetch boundary independently.
     test('fetchExchangeRates performs a fresh request for each separate invocation', async () => {
+        const localRatesUrl = 'rates/default/rates.json';
         const firstRatePayload = { USD: 1, ILS: 3.4, GBP: 0.6, EURO: 0.7 };
         const secondRatePayload = { USD: 1, ILS: 3.5, GBP: 0.61, EURO: 0.71 };
 
@@ -112,13 +113,13 @@ describe('exchange.js logic', () => {
             .mockResolvedValueOnce({ ok: true, json: async () => firstRatePayload })
             .mockResolvedValueOnce({ ok: true, json: async () => secondRatePayload });
 
-        const firstFetchedRates = await fetchExchangeRates();
-        const secondFetchedRates = await fetchExchangeRates();
+        const firstFetchedRates = await fetchExchangeRates(localRatesUrl);
+        const secondFetchedRates = await fetchExchangeRates(localRatesUrl);
 
         // Two direct helper invocations must produce two network requests.
         expect(global.fetch).toHaveBeenCalledTimes(2);
-        expect(global.fetch).toHaveBeenNthCalledWith(1, 'rates/default/rates.json');
-        expect(global.fetch).toHaveBeenNthCalledWith(2, 'rates/default/rates.json');
+        expect(global.fetch).toHaveBeenNthCalledWith(1, localRatesUrl);
+        expect(global.fetch).toHaveBeenNthCalledWith(2, localRatesUrl);
         expect(firstFetchedRates).toEqual(firstRatePayload);
         expect(secondFetchedRates).toEqual(secondRatePayload);
     });

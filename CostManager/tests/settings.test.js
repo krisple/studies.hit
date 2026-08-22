@@ -50,7 +50,7 @@ describe('exchange-rate settings', () => {
     test('the configured source falls back to the bundled rates when no custom URL exists', () => {
         // No storage entry is necessary for the application's required default behavior.
         expect(getExchangeRatesUrl()).toBe(defaultRatesUrl);
-        expect(defaultRatesUrl).toBe('rates/default/rates.json');
+        expect(defaultRatesUrl).toBe('https://cost-2-cost.onrender.com/rates/default/rates.json');
     });
 
     test('saveExchangeRatesUrl trims and persists a valid custom source', () => {

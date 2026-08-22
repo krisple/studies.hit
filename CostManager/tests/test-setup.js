@@ -10,6 +10,7 @@ global.fetch = jest.fn(async (requestedUrl) => {
         throw new Error(`Unexpected setup Fetch URL: ${String(requestedUrl)}`);
     }
 
+    // The mock returns only the response fields consumed by the runtime config loader.
     return {
         ok: true,
         json: async () => applicationConfig

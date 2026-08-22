@@ -938,7 +938,7 @@
                     assertEqual(fetchController.calls.length, 1, 'Startup made the wrong number of Fetch calls');
                     assertEqual(
                         fetchController.calls[0],
-                        'rates/default/rates.json',
+                        'https://cost-2-cost.onrender.com/rates/default/rates.json',
                         'Startup fetched the wrong default URL'
                     );
                 });
