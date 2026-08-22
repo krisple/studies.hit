@@ -129,6 +129,8 @@ function createReportRow(reportRow, showFullDescription) {
         createReportCell(`${formatAmount(reportRow.originalSum)} ${reportRow.originalCurrency}`),
         createReportCell(`${formatAmount(reportRow.convertedSum)} ${reportRow.targetCurrency}`)
     );
+
+    // Returning the assembled row keeps row construction separate from table insertion.
     return tableRow;
 }
 

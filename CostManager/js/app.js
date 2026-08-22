@@ -24,15 +24,19 @@ function getRequiredElement(elementId) {
 
 // Report element collection keeps the panel initializer independent from document queries.
 function getDetailedReportElements() {
-    // Group the shared dialog dependencies with the mutable report output nodes.
+    // Core report controls and visibility nodes stay together.
     return {
         form: getRequiredElement('detailed-report-form'),
         statusElement: getRequiredElement('detailed-report-status'),
         emptyElement: getRequiredElement('detailed-report-empty'),
         outputElement: getRequiredElement('detailed-report-output'),
+
+        // One reusable dialog serves every expandable report description.
         dialogElement: getRequiredElement('description-dialog'),
         dialogTextElement: getRequiredElement('description-dialog-text'),
         dialogCloseButton: getRequiredElement('description-dialog-close'),
+
+        // These nodes contain the rendered report rows and aggregate total.
         tableBody: getRequiredElement('detailed-report-body'),
         totalElement: getRequiredElement('detailed-report-total')
     };
@@ -68,12 +72,9 @@ export function initializeApplication() {
 
     // Explicit source changes refresh an existing report after the new rates become active.
     initializeSettingsForm(
-        settingsForm,
-        defaultRatesButton,
-        settingsStatus,
-        currentRatesSource,
-        localStorage,
-        exchangeRateManager,
+        settingsForm, defaultRatesButton,
+        settingsStatus, currentRatesSource,
+        localStorage, exchangeRateManager,
         detailedReportPanel.refreshIfDisplayed
     );
 

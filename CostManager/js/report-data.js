@@ -11,17 +11,21 @@ export function buildDetailedReportView(report, targetCurrency, rates) {
     const rows = report.costs.map((cost) => {
         const convertedSum = convertCurrency(cost.sum, cost.currency, targetCurrency, rates);
 
-        // Rows combine the report-level period with each day and add display-only currency metadata.
+        // Rows combine the report-level period with stored and display-only values.
         return {
             date: {
                 year: report.year,
                 month: report.month,
                 day: cost.date.day
             },
+
+            // Stored values remain unchanged in the detailed report view.
             category: cost.category,
             description: cost.description,
             originalSum: cost.sum,
             originalCurrency: cost.currency,
+
+            // Conversion fields are display-only and are never persisted.
             convertedSum,
             targetCurrency
         };

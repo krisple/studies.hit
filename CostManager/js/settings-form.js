@@ -16,12 +16,9 @@ function showSettingsStatus(statusElement, message, state) {
 // Bind storage-backed settings behavior to the dedicated settings panel.
 // Optional boundaries keep storage and rate loading deterministic in tests.
 export function initializeSettingsForm(
-    settingsForm,
-    defaultButton,
-    statusElement,
-    sourceElement,
-    storage = localStorage,
-    rateManager = exchangeRateManager,
+    settingsForm, defaultButton,
+    statusElement, sourceElement,
+    storage = localStorage, rateManager = exchangeRateManager,
     onExplicitRatesLoaded = () => {}
 ) {
     // Resolve the form and persisted source once before any event can change them.

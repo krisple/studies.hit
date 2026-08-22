@@ -54,32 +54,38 @@ function createPieConfiguration(chartData, currency) {
         ? chartData.labels.map((label, index) => chartColors[index % chartColors.length])
         : ['#dce3da'];
 
-    // Metadata and tooltips identify the currency, while the default legend identifies categories.
-    // Responsive sizing serves populated and neutral states in the fixed-height container.
+    // Metadata and tooltips identify the selected currency while preserving raw values.
     return {
         type: 'pie',
+
+        // Data contains the category labels and values used by the pie.
         data: {
             labels: pieLabels,
             datasets: [{
                 label: `Costs in ${currency}`,
                 data: pieValues,
+
+                // Dataset styling distinguishes slices without affecting their numeric values.
                 backgroundColor: pieColors,
                 borderColor: '#ffffff',
                 borderWidth: 2
             }]
         },
+
+        // Rendering options control responsive sizing and plugin behavior.
         options: {
             responsive: true,
             maintainAspectRatio: false,
+
             plugins: {
                 legend: {
                     display: hasCosts
                 },
+
+                // Tooltips hide empty-state UI and add the selected currency at display time.
                 tooltip: {
                     enabled: hasCosts,
-                    callbacks: {
-                        label: (context) => `${context.label}: ${formatTooltipAmount(context, currency)}`
-                    }
+                    callbacks: { label: (context) => `${context.label}: ${formatTooltipAmount(context, currency)}` }
                 }
             }
         }
@@ -88,32 +94,36 @@ function createPieConfiguration(chartData, currency) {
 
 // Bar configuration always consumes the ordered twelve-month transformation.
 function createBarConfiguration(chartData, currency) {
-    // Ordered values and a zero baseline keep January-to-December totals comparable.
-    // Responsive sizing preserves raw data while tooltips and the default legend add context.
     return {
         type: 'bar',
+
+        // Data preserves the January-to-December values produced by the annual transformation.
         data: {
             labels: chartData.labels,
             datasets: [{
                 label: `Monthly costs in ${currency}`,
                 data: chartData.values,
+
+                // Dataset styling affects presentation only.
                 backgroundColor: '#195f43',
                 borderRadius: 6
             }]
         },
+
+        // Rendering options keep monthly totals visually comparable.
         options: {
             responsive: true,
             maintainAspectRatio: false,
+
+            // A zero-based Y axis preserves a meaningful comparison between months.
             scales: {
-                y: {
-                    beginAtZero: true
-                }
+                y: { beginAtZero: true }
             },
+
+            // Tooltip formatting adds the selected currency without altering raw data.
             plugins: {
                 tooltip: {
-                    callbacks: {
-                        label: (context) => formatTooltipAmount(context, currency)
-                    }
+                    callbacks: { label: (context) => formatTooltipAmount(context, currency) }
                 }
             }
         }

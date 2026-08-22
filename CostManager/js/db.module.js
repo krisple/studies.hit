@@ -95,12 +95,14 @@ function validateCostInput(cost) {
 function buildStoredCost(cost) {
     const today = new Date();
 
-    // Copy caller fields before attaching the full insertion date with public 1–12 month numbering.
+    // Copy caller fields before attaching the application-managed insertion date.
     return {
         sum: cost.sum,
         currency: cost.currency,
         category: cost.category,
         description: cost.description,
+
+        // Dates use the public 1–12 month convention required by report filtering.
         date: {
             day: today.getDate(),
             month: today.getMonth() + 1,
@@ -148,12 +150,14 @@ function filterCostsByPeriod(costs, targetYear, targetMonth) {
 
 // Reports preserve original sums and currencies but expose only the required date.day field.
 function mapToReportCost(storedCost) {
-    // Preserve text while omitting the report-level month and year from each public item.
+    // Preserve the stored public fields in the report item.
     return {
         sum: storedCost.sum,
         currency: storedCost.currency,
         category: storedCost.category,
         description: storedCost.description,
+
+        // Year and month live at report level, so each item exposes only its day.
         date: {
             day: storedCost.date.day
         }
@@ -201,12 +205,13 @@ function openCostsDB(databaseName, databaseVersion) {
         const reportCosts = periodCosts.map(mapToReportCost);
         const convertedTotal = calculateConvertedTotal(periodCosts, currency);
 
-        // Resolved period metadata and converted total share one report response.
-        // Only the total is converted; each report cost retains its stored amount and currency.
+        // Resolved period metadata and original report costs form the report body.
         return {
             year: targetYear,
             month: targetMonth,
             costs: reportCosts,
+
+            // Only the aggregate total is converted; individual costs retain their stored values.
             total: {
                 currency,
                 sum: convertedTotal
