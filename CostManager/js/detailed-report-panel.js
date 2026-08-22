@@ -186,6 +186,7 @@ export function initializeDetailedReportPanel(reportElements, costsDb) {
         }
     }
 
+    // Native form submission remains the only user-triggered report operation.
     function handleReportSubmit(event) {
         event.preventDefault();
         updateDetailedReport();

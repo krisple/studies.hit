@@ -24,6 +24,7 @@ export function initializeSettingsForm(
     rateManager = exchangeRateManager,
     onExplicitRatesLoaded = () => {}
 ) {
+    // Resolve the form and persisted source once before any event can change them.
     const ratesUrlInput = settingsForm.elements.namedItem('ratesUrl');
     const settingsCard = settingsForm.closest('.settings-panel') ?? settingsForm;
     const activeRatesUrl = getExchangeRatesUrl(storage);
@@ -40,11 +41,13 @@ export function initializeSettingsForm(
             return;
         }
 
+        // Outside interaction clears both the visible message and its styling state.
         statusElement.textContent = '';
         delete statusElement.dataset.state;
         hasDismissibleSuccess = false;
     }
 
+    // Each activation is versioned so superseded UI feedback cannot overwrite newer state.
     async function activateRatesSource(ratesUrl, successMessage) {
         latestSourceChangeId += 1;
         const sourceChangeId = latestSourceChangeId;

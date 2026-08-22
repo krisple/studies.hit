@@ -116,7 +116,7 @@ describe('report and chart operations', () => {
         expect(reportElements.tableBody.textContent).toContain('8.00 USD');
         expect(reportElements.totalElement.textContent).toBe('8.00 USD');
 
-        // A later user submission remains an independent request using the same snapshot.
+        // A later submission reuses the same snapshot without starting another Fetch.
         form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         expect(costsDb.getReport).toHaveBeenCalledTimes(3);
         expect(reportElements.tableBody.textContent).toContain('8.00 USD');
@@ -124,6 +124,7 @@ describe('report and chart operations', () => {
         expect(global.fetch).toHaveBeenCalledTimes(2);
     });
 
+    // A guarded refresh must remain inert until the user creates the first report.
     test('an explicit rates change does not create a report before one is displayed', () => {
         const form = createMonthlyForm('detailed-report-form');
         const reportElements = {

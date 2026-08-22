@@ -116,6 +116,7 @@
             EURO: 0.7
         });
 
+        // Shared immutable fixtures keep every sandbox expectation consistent.
         const supportedCurrencies = ['USD', 'ILS', 'GBP', 'EURO'];
         const originalFetch = window.fetch.bind(window);
         const testResults = [];
@@ -126,28 +127,33 @@
             throw new Error(message);
         }
 
+        // Boolean checks use the same failure path as the richer comparison helpers.
         function assert(condition, message) {
             if (!condition) {
                 fail(message);
             }
         }
 
+        // Equality helpers distinguish exact contract values from approximate conversions.
         function assertEqual(actual, expected, message) {
             if (!Object.is(actual, expected)) {
                 fail(`${message}. Expected ${String(expected)}, received ${String(actual)}`);
             }
         }
 
+        // Floating-point conversions receive a narrow tolerance without weakening exact checks.
         function assertApproximately(actual, expected, message, epsilon = 1e-9) {
             if (Math.abs(actual - expected) > epsilon) {
                 fail(`${message}. Expected approximately ${expected}, received ${actual}`);
             }
         }
 
+        // Normalization removes cross-realm prototypes before structural comparison.
         function normalize(value) {
             return JSON.parse(JSON.stringify(value));
         }
 
+        // Deep comparison reports serialized values so failures remain readable in the table.
         function assertDeepEqual(actual, expected, message) {
             const actualJson = JSON.stringify(normalize(actual));
             const expectedJson = JSON.stringify(normalize(expected));
@@ -157,6 +163,7 @@
             }
         }
 
+        // Synchronous failure checks retain the thrown value for optional message validation.
         function expectThrow(callback, expectedMessagePart) {
             let thrownError = null;
 
@@ -166,6 +173,7 @@
                 thrownError = error;
             }
 
+            // Both native Error objects and cross-realm thrown values count as failures.
             assert(thrownError instanceof Error || thrownError, 'Expected the operation to throw');
             if (expectedMessagePart) {
                 assert(
@@ -177,6 +185,7 @@
             return thrownError;
         }
 
+        // The asynchronous counterpart applies the same contract to rejected promises.
         async function expectReject(promise, expectedMessagePart) {
             let rejection = null;
 
@@ -186,6 +195,7 @@
                 rejection = error;
             }
 
+            // Optional message checks run only after confirming that rejection occurred.
             assert(rejection, 'Expected the promise to reject');
             if (expectedMessagePart) {
                 assert(
@@ -202,6 +212,7 @@
             }
         }
 
+        // Fetch controllers expose request timing and payload failures to individual cases.
         function createFetchController(options = {}) {
             const calls = [];
             const {
@@ -212,6 +223,7 @@
                 jsonReject = null
             } = options;
 
+            // Deferred handles allow the test to resolve or reject the captured request later.
             let resolveRequest;
             let rejectRequest;
 
@@ -222,6 +234,7 @@
                 })
                 : null;
 
+            // Fresh response objects prevent one test from mutating another test's fixture.
             function makeResponse() {
                 return {
                     ok,
@@ -236,6 +249,7 @@
                 };
             }
 
+            // The mock records the requested source before choosing immediate or deferred delivery.
             function fetchMock(url) {
                 calls.push(String(url));
 
@@ -246,6 +260,7 @@
                 return Promise.resolve(makeResponse());
             }
 
+            // Test cases control deferred completion through this narrow controller surface.
             return {
                 calls,
                 fetchMock,
@@ -268,10 +283,12 @@
             frame.hidden = true;
             document.body.append(frame);
 
+            // Every dependency is replaced only inside the fresh iframe global.
             const sandboxWindow = frame.contentWindow;
             const fetchController = createFetchController(fetchOptions);
             const intervalIds = [];
             const capturedErrors = [];
+            // Native timer references allow cleanup after accidental scheduling is recorded.
             const nativeSetInterval = sandboxWindow.setInterval.bind(sandboxWindow);
             const nativeClearInterval = sandboxWindow.clearInterval.bind(sandboxWindow);
 
@@ -282,6 +299,7 @@
                 return intervalId;
             };
             sandboxWindow.fetch = fetchController.fetchMock;
+            // Captured errors make rejected startup requests observable without console noise.
             sandboxWindow.console.error = (...args) => {
                 capturedErrors.push(args.map(String).join(' '));
             };
@@ -289,11 +307,13 @@
             sandboxWindow.eval(dbSource);
             await flushAsyncWork();
 
+            // Cleanup removes both native timers and the isolated storage context.
             function cleanup() {
                 intervalIds.forEach((intervalId) => nativeClearInterval(intervalId));
                 frame.remove();
             }
 
+            // Only dependencies needed by a test escape the sandbox helper.
             return {
                 window: sandboxWindow,
                 fetchController,
@@ -303,10 +323,12 @@
             };
         }
 
+        // Randomized names isolate every test from localStorage records left by earlier cases.
         function uniqueDatabaseName(prefix = 'evil') {
             return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
         }
 
+        // Storage discovery uses unique description markers instead of assuming a key name.
         function findStorageKeyContaining(storage, marker) {
             for (let index = 0; index < storage.length; index += 1) {
                 const key = storage.key(index);
@@ -320,6 +342,7 @@
             return null;
         }
 
+        // Calendar parts mirror the date representation persisted by the database library.
         function currentDateParts() {
             const today = new Date();
 
@@ -330,6 +353,7 @@
             };
         }
 
+        // Independent conversion math prevents the harness from echoing library output blindly.
         function expectedConversion(amount, fromCurrency, toCurrency, rates = expectedRates) {
             if (fromCurrency === toCurrency) {
                 return amount;
@@ -338,6 +362,7 @@
             return (amount / rates[fromCurrency]) * rates[toCurrency];
         }
 
+        // Every case records a result so one failure does not stop the remaining torture suite.
         async function test(group, name, callback) {
             try {
                 await callback();
@@ -352,6 +377,7 @@
             }
         }
 
+        // Sandbox cleanup is guaranteed even when the individual assertion callback fails.
         async function withSandbox(fetchOptions, callback) {
             const sandbox = await createSandbox(fetchOptions);
 
@@ -364,6 +390,7 @@
 
         // This is the professor-style happy path, then progressively more hostile cases.
         async function runContractTests() {
+            // Global exposure is checked before any database instance is created.
             await test('Contract', 'Global db object exists and exposes openCostsDB', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     assert(sandboxWindow.db, 'window.db was not created');
@@ -371,6 +398,7 @@
                 });
             });
 
+            // Public-surface checks ensure the IIFE does not leak application internals.
             await test('Contract', 'db exposes no accidental public application API', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     assertDeepEqual(
@@ -378,6 +406,7 @@
                         ['openCostsDB'],
                         'Unexpected public properties were exposed on db'
                     );
+                    // Application-only globals must remain absent from the classic library surface.
                     assertEqual(sandboxWindow.exchange, undefined, 'Unexpected global exchange object leaked');
                     assertEqual(
                         sandboxWindow.exchangeRateManager,
@@ -387,18 +416,22 @@
                 });
             });
 
+            // Instance-method checks enforce the clarified database factory contract.
             await test('Contract', 'openCostsDB returns addCost and getReport instance methods', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
 
+                    // Both operations must remain instance methods with the original arity.
                     assertEqual(typeof costsDb.addCost, 'function', 'addCost must be a function');
                     assertEqual(typeof costsDb.getReport, 'function', 'getReport must be a function');
                     assertEqual(costsDb.getReport.length, 3, 'getReport must keep the 3-argument signature');
                 });
             });
 
+            // The grading example verifies the ordinary happy path without conversion.
             await test('Contract', 'Professor smoke test: 200 USD + 400 USD = 600 USD', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Two ordinary USD records reproduce the public grading example exactly.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName('professor'), 1);
                     const first = costsDb.addCost({
                         sum: 200,
@@ -414,14 +447,17 @@
                     });
                     const report = costsDb.getReport('USD');
 
+                    // The smoke path requires truthy add results and the expected aggregate total.
                     assert(first, 'First addCost result is missing');
                     assert(second, 'Second addCost result is missing');
                     assertEqual(report.total.sum, 600, 'Professor total is wrong');
                 });
             });
 
+            // Public add output must stay narrower than the internally stored record.
             await test('Contract', 'addCost return shape is exact and does not expose date or extras', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // An extra caller field verifies that storage enrichment does not leak publicly.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const input = {
                         sum: 12.5,
@@ -432,6 +468,7 @@
                     };
                     const added = costsDb.addCost(input);
 
+                    // Public output is compared as a complete value before forbidden fields are checked.
                     assertDeepEqual(
                         added,
                         {
@@ -447,8 +484,10 @@
                 });
             });
 
+            // Return type inspection guards against accidental async API drift.
             await test('Contract', 'getReport is synchronous and returns a plain object', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // A populated same-currency report avoids any dependency on rate-loading timing.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
                         sum: 10,
@@ -458,13 +497,16 @@
                     });
                     const report = costsDb.getReport('USD');
 
+                    // Promise identity and object type jointly enforce the synchronous contract.
                     assert(!(report instanceof Promise), 'getReport unexpectedly returned a Promise');
                     assertEqual(typeof report, 'object', 'getReport must return an object');
                 });
             });
         }
 
+        // Input attacks exercise validation, value preservation, and caller ownership boundaries.
         async function runAddCostAttackTests() {
+            // Factory identity validation precedes all cost-level attack cases.
             await test('addCost attacks', 'Rejects invalid database identity types', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     expectThrow(() => sandboxWindow.db.openCostsDB(123, 1), 'databaseName');
@@ -474,8 +516,10 @@
                 });
             });
 
+            // Sum validation rejects non-finite and non-number representations without coercion.
             await test('addCost attacks', 'Rejects null, missing, string, NaN and infinite sums', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Valid text and currency isolate each failure to the numeric sum boundary.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const base = {
                         currency: 'USD',
@@ -483,6 +527,7 @@
                         description: 'x'
                     };
 
+                    // Each unsupported numeric representation must fail independently.
                     expectThrow(() => costsDb.addCost(null));
                     expectThrow(() => costsDb.addCost({ ...base }));
                     expectThrow(() => costsDb.addCost({ ...base, sum: '10' }));
@@ -492,8 +537,10 @@
                 });
             });
 
+            // Currency validation enforces the exact uppercase symbol contract.
             await test('addCost attacks', 'Rejects unsupported, lowercase and non-string currencies', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // A small factory keeps every rejected case identical except for currency.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const makeCost = (currency) => ({
                         sum: 10,
@@ -502,6 +549,7 @@
                         description: 'x'
                     });
 
+                    // Symbol, case, type, and null boundaries are asserted separately.
                     expectThrow(() => costsDb.addCost(makeCost('YEN')), 'supported currencies');
                     expectThrow(() => costsDb.addCost(makeCost('usd')), 'supported currencies');
                     expectThrow(() => costsDb.addCost(makeCost(123)), 'supported currencies');
@@ -509,10 +557,12 @@
                 });
             });
 
+            // Text boundaries reject structured or numeric values instead of stringifying them.
             await test('addCost attacks', 'Rejects non-string category and description', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
 
+                    // Complete cost objects isolate the two text-field type violations.
                     expectThrow(() => costsDb.addCost({
                         sum: 1,
                         currency: 'USD',
@@ -528,11 +578,14 @@
                 });
             });
 
+            // Valid finite values include edge cases that must not be normalized away.
             await test('addCost attacks', 'Accepts and preserves zero, negative and decimal numeric sums', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Boundary and precision examples confirm that every finite number remains valid.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const values = [0, -15.75, 0.000001, 999999999.125];
 
+                    // Each stored value is checked immediately against its original numeric input.
                     values.forEach((sum, index) => {
                         const added = costsDb.addCost({
                             sum,
@@ -545,8 +598,10 @@
                 });
             });
 
+            // Text preservation also protects against accidental property or markup interpretation.
             await test('addCost attacks', 'Preserves Unicode, HTML-like text and __proto__ as literal strings', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Hostile-looking strings verify literal preservation without HTML interpretation.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const category = '__proto__';
                     const description = '<img src=x onerror=alert(1)> עברית 😀 & "quotes"';
@@ -557,13 +612,16 @@
                         description
                     });
 
+                    // Both returned text fields must remain byte-for-byte equivalent to input.
                     assertEqual(added.category, category, 'Category text changed');
                     assertEqual(added.description, description, 'Description text changed');
                 });
             });
 
+            // Caller ownership is verified independently from stored-value correctness.
             await test('addCost attacks', 'Does not mutate the caller input object', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Serialization captures caller-owned state before the database sees it.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const input = {
                         sum: 33,
@@ -573,14 +631,17 @@
                     };
                     const before = JSON.stringify(input);
 
+                    // Persistence may enrich its copy but must leave the caller object untouched.
                     costsDb.addCost(input);
                     assertEqual(JSON.stringify(input), before, 'addCost mutated the caller object');
                     assertEqual(input.date, undefined, 'addCost attached date to the caller object');
                 });
             });
 
+            // Post-save mutation exposes any reference accidentally retained by persistence.
             await test('addCost attacks', 'Later caller mutation cannot rewrite the stored cost', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // The original object is deliberately retained so it can be mutated after saving.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const input = {
                         sum: 17,
@@ -589,12 +650,14 @@
                         description: 'Before'
                     };
 
+                    // Every caller field changes after persistence to expose accidental aliasing.
                     costsDb.addCost(input);
                     input.sum = 9999;
                     input.currency = 'GBP';
                     input.category = 'After';
                     input.description = 'After';
 
+                    // A fresh report must still contain the values copied at insertion time.
                     const report = costsDb.getReport('USD');
                     assertEqual(report.costs[0].sum, 17, 'Stored sum followed caller mutation');
                     assertEqual(report.costs[0].currency, 'USD', 'Stored currency followed caller mutation');
@@ -603,8 +666,10 @@
                 });
             });
 
+            // Large values verify that the library does not impose undocumented text limits.
             await test('addCost attacks', 'Very long text is preserved instead of truncated', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Repeated multilingual content creates a large value without external fixtures.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const longText = 'אבגXYZ😀'.repeat(1500);
                     costsDb.addCost({
@@ -614,6 +679,7 @@
                         description: longText
                     });
 
+                    // Report output must reproduce both large fields without normalization or truncation.
                     const report = costsDb.getReport('USD');
                     assertEqual(report.costs[0].category, longText, 'Long category was truncated or modified');
                     assertEqual(report.costs[0].description, longText, 'Long description was truncated or modified');
@@ -621,9 +687,12 @@
             });
         }
 
+        // Date and storage cases verify persistence details that are hidden by the public API.
         async function runDateAndStorageTests() {
+            // Raw storage confirms the full date that addCost intentionally hides publicly.
             await test('Date/storage', 'Stored record receives the real current full date', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // A unique description locates the exact record without relying on internals.
                     const marker = `marker-${Math.random()}`;
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
@@ -633,6 +702,7 @@
                         description: marker
                     });
 
+                    // Raw localStorage inspection verifies the full insertion date at rest.
                     const storageKey = findStorageKeyContaining(sandboxWindow.localStorage, marker);
                     assert(storageKey, 'Could not locate the persisted record in localStorage');
 
@@ -643,8 +713,10 @@
                 });
             });
 
+            // Public date shape is checked separately from its richer persisted representation.
             await test('Date/storage', 'Report item exposes only date.day while period stays at report level', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // A current-period record supplies both report-level and row-level date data.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
                         sum: 4,
@@ -656,14 +728,17 @@
                     const report = costsDb.getReport('USD');
                     const today = currentDateParts();
 
+                    // Period metadata stays on the report while each cost exposes only its day.
                     assertEqual(report.year, today.year, 'Report year is wrong');
                     assertEqual(report.month, today.month, 'Report month is wrong');
                     assertDeepEqual(report.costs[0].date, { day: today.day }, 'Report cost date shape is wrong');
                 });
             });
 
+            // Reopening tests persistence across factory calls rather than object reuse.
             await test('Date/storage', 'Reopening the same database sees previously persisted costs', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Both instances share one explicit database name but no object identity.
                     const databaseName = uniqueDatabaseName('reopen');
                     const firstInstance = sandboxWindow.db.openCostsDB(databaseName, 1);
                     firstInstance.addCost({
@@ -676,13 +751,16 @@
                     const secondInstance = sandboxWindow.db.openCostsDB(databaseName, 1);
                     const report = secondInstance.getReport('USD');
 
+                    // The later instance must recover the original item and total from storage.
                     assertEqual(report.costs.length, 1, 'Reopened database lost the stored item');
                     assertEqual(report.total.sum, 21, 'Reopened database total is wrong');
                 });
             });
 
+            // Name isolation guards against hidden current-database state.
             await test('Date/storage', 'Different database names stay isolated', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Separate names create independent storage keys inside the same sandbox.
                     const firstDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName('first'), 1);
                     const secondDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName('second'), 1);
 
@@ -699,13 +777,16 @@
                         description: 'only second'
                     });
 
+                    // Each instance must report only its own stored amount.
                     assertEqual(firstDb.getReport('USD').total.sum, 10, 'First database was contaminated');
                     assertEqual(secondDb.getReport('USD').total.sum, 99, 'Second database was contaminated');
                 });
             });
 
+            // Historical fixtures distinguish filtering from current-period default behavior.
             await test('Date/storage', 'Historical year/month filtering returns only matching records', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // A normal insertion discovers the opaque key before historical fixtures are appended.
                     const marker = `history-${Math.random()}`;
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName('history'), 1);
                     costsDb.addCost({
@@ -717,6 +798,7 @@
 
                     const storageKey = findStorageKeyContaining(sandboxWindow.localStorage, marker);
                     const storedCosts = JSON.parse(sandboxWindow.localStorage.getItem(storageKey));
+                    // Two historical records distinguish the requested month from a nearby month.
                     storedCosts.push({
                         sum: 50,
                         currency: 'USD',
@@ -733,6 +815,7 @@
                     });
                     sandboxWindow.localStorage.setItem(storageKey, JSON.stringify(storedCosts));
 
+                    // The historical query must exclude both current data and the wrong month.
                     const report = costsDb.getReport('USD', 2020, 5);
                     assertEqual(report.costs.length, 1, 'Historical filter included the wrong records');
                     assertEqual(report.costs[0].description, 'May 2020', 'Historical filter returned wrong record');
@@ -740,6 +823,7 @@
                 });
             });
 
+            // Empty periods still require a complete, correctly typed report response.
             await test('Date/storage', 'Empty period returns an empty costs array and zero total', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
@@ -751,8 +835,10 @@
                 });
             });
 
+            // Report mutation checks that public objects are detached from persisted data.
             await test('Date/storage', 'Mutating a returned report cannot mutate localStorage', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // A persisted baseline is read once and then aggressively modified by the caller.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
                         sum: 18,
@@ -766,6 +852,7 @@
                     firstReport.costs[0].category = 'Hacked';
                     firstReport.costs[0].date.day = 31;
 
+                    // A second read must rebuild the unchanged public values from storage.
                     const secondReport = costsDb.getReport('USD');
                     assertEqual(secondReport.costs[0].sum, 18, 'Report mutation changed persisted sum');
                     assertEqual(secondReport.costs[0].category, 'Safe', 'Report mutation changed persisted category');
@@ -777,12 +864,15 @@
                 });
             });
 
+            // Root corruption covers both parsing failure and wrong collection shape.
             await test('Date/storage', 'Malformed JSON and non-array storage are rejected', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Direct storage writes exercise corruption states unavailable through addCost.
                     const databaseName = uniqueDatabaseName('corrupt');
                     const costsDb = sandboxWindow.db.openCostsDB(databaseName, 1);
                     const storageKey = `costsdb_${databaseName}`;
 
+                    // Syntax, collection shape, and empty content fail through the same read boundary.
                     sandboxWindow.localStorage.setItem(storageKey, '{broken json');
                     expectThrow(() => costsDb.getReport('USD'), 'Failed to load costs database');
 
@@ -794,8 +884,10 @@
                 });
             });
 
+            // Field-level corruption ensures storage reads never trust partial records.
             await test('Date/storage', 'Corrupted stored fields and dates are rejected', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // One valid baseline record is varied to isolate each structural violation.
                     const databaseName = uniqueDatabaseName('corruptFields');
                     const costsDb = sandboxWindow.db.openCostsDB(databaseName, 1);
                     const storageKey = `costsdb_${databaseName}`;
@@ -807,6 +899,7 @@
                         date: { day: 1, month: 1, year: 2020 }
                     };
 
+                    // The collection covers field types, unsupported currency, and date bounds.
                     const corruptRecords = [
                         { ...base, sum: '10' },
                         { ...base, currency: 'YEN' },
@@ -820,6 +913,7 @@
                         { ...base, date: { day: '1', month: 1, year: 2020 } }
                     ];
 
+                    // Every individual corruption must be rejected when read back.
                     corruptRecords.forEach((record) => {
                         sandboxWindow.localStorage.setItem(storageKey, JSON.stringify([record]));
                         expectThrow(() => costsDb.getReport('USD'), 'Failed to load costs database');
@@ -827,13 +921,16 @@
                 });
             });
 
+            // Write failure must preserve evidence of corruption for the caller to handle.
             await test('Date/storage', 'addCost refuses to hide or overwrite an already corrupted database', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // A malformed existing collection tests write behavior against prior corruption.
                     const databaseName = uniqueDatabaseName('corruptWrite');
                     const costsDb = sandboxWindow.db.openCostsDB(databaseName, 1);
                     const storageKey = `costsdb_${databaseName}`;
                     sandboxWindow.localStorage.setItem(storageKey, '{"bad":"shape"}');
 
+                    // The attempted add must fail before replacing the original bytes.
                     expectThrow(() => costsDb.addCost({
                         sum: 1,
                         currency: 'USD',
@@ -841,6 +938,7 @@
                         description: 'must fail'
                     }), 'Failed to load costs database');
 
+                    // Exact storage comparison confirms that failure was non-destructive.
                     assertEqual(
                         sandboxWindow.localStorage.getItem(storageKey),
                         '{"bad":"shape"}',
@@ -850,7 +948,9 @@
             });
         }
 
+        // Report attacks cover public argument defaults, validation, and response shape.
         async function runReportBoundaryTests() {
+            // Target currency is mandatory even for an otherwise empty report.
             await test('Report attacks', 'Missing and unsupported target currencies are rejected', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
@@ -862,10 +962,12 @@
                 });
             });
 
+            // Period validation accepts only integer years and public 1-based months.
             await test('Report attacks', 'Invalid year and month boundaries are rejected', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
 
+                    // Type, finiteness, range, and integer constraints are checked independently.
                     expectThrow(() => costsDb.getReport('USD', '2026', 8), 'Year must be an integer');
                     expectThrow(() => costsDb.getReport('USD', 2026.5, 8), 'Year must be an integer');
                     expectThrow(() => costsDb.getReport('USD', NaN, 8), 'Year must be an integer');
@@ -876,24 +978,30 @@
                 });
             });
 
+            // Complete omission exercises the documented current-period shortcut.
             await test('Report attacks', 'Omitted year and month default to the current period', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // The harness captures today's values separately from the library under test.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const today = currentDateParts();
                     const report = costsDb.getReport('USD');
 
+                    // Both omitted components must resolve to the same observed calendar period.
                     assertEqual(report.year, today.year, 'Default year is wrong');
                     assertEqual(report.month, today.month, 'Default month is wrong');
                 });
             });
 
+            // Partial omission verifies that explicit and defaulted components do not interfere.
             await test('Report attacks', 'Partial omission defaults each missing period component independently', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Complementary calls isolate defaulting of month from defaulting of year.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const today = currentDateParts();
                     const yearOnly = costsDb.getReport('USD', 2020);
                     const monthOnly = costsDb.getReport('USD', undefined, 5);
 
+                    // Explicit components remain fixed while only their missing counterpart defaults.
                     assertEqual(yearOnly.year, 2020, 'Explicit year was ignored');
                     assertEqual(yearOnly.month, today.month, 'Missing month did not default');
                     assertEqual(monthOnly.year, today.year, 'Missing year did not default');
@@ -901,8 +1009,10 @@
                 });
             });
 
+            // Exact key checks prevent silent expansion of the grading contract.
             await test('Report attacks', 'Report shape is exact and total currency matches the request', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // One ordinary cost produces every nested object required for key inspection.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
                         sum: 8,
@@ -912,6 +1022,7 @@
                     });
                     const report = costsDb.getReport('USD');
 
+                    // Exact key sets reject both missing contract fields and accidental additions.
                     assertDeepEqual(
                         Object.keys(report).sort(),
                         ['costs', 'month', 'total', 'year'],
@@ -932,7 +1043,9 @@
             });
         }
 
+        // Exchange torture isolates startup loading, retention, validation, and conversion behavior.
         async function runExchangeRateTortureTests() {
+            // Startup request counting protects the standalone one-fetch requirement.
             await test('Exchange torture', 'Standalone db.js starts exactly one default rates.json Fetch', async () => {
                 await withSandbox({}, async ({ fetchController }) => {
                     assertEqual(fetchController.calls.length, 1, 'Startup made the wrong number of Fetch calls');
@@ -944,14 +1057,17 @@
                 });
             });
 
+            // Timer inspection distinguishes Vanilla behavior from the application manager.
             await test('Exchange torture', 'Standalone db.js does not register a periodic refresh timer', async () => {
                 await withSandbox({}, async ({ intervalIds }) => {
                     assertEqual(intervalIds.length, 0, 'Standalone db.js unexpectedly registered setInterval');
                 });
             });
 
+            // Identity conversion remains available before asynchronous initialization completes.
             await test('Exchange torture', 'Same-currency report works while startup rates are still pending', async () => {
                 await withSandbox({ deferred: true }, async ({ window: sandboxWindow }) => {
+                    // Identity conversion must not depend on the unresolved startup request.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
                         sum: 25,
@@ -960,13 +1076,16 @@
                         description: 'Identity conversion'
                     });
 
+                    // The synchronous report remains available because no rate lookup is needed.
                     const report = costsDb.getReport('USD');
                     assertEqual(report.total.sum, 25, 'Identity report incorrectly depends on pending rates');
                 });
             });
 
+            // Cross-currency work must expose unavailable startup state synchronously.
             await test('Exchange torture', 'Cross-currency getReport throws synchronously before initial rates load', async () => {
                 await withSandbox({ deferred: true }, async ({ window: sandboxWindow }) => {
+                    // An ILS record forces conversion while the controller intentionally stays pending.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
                         sum: 34,
@@ -975,6 +1094,7 @@
                         description: 'Needs conversion'
                     });
 
+                    // The failure itself must be immediate rather than represented by a Promise.
                     const error = expectThrow(
                         () => costsDb.getReport('USD'),
                         'Exchange rates have not loaded yet'
@@ -983,7 +1103,9 @@
                 });
             });
 
+            // The same database instance becomes usable once its retained rates arrive.
             await test('Exchange torture', 'Pending cross-currency report succeeds after the startup Fetch resolves', async () => {
+                // Deferred completion makes the unavailable-to-available transition deterministic.
                 await withSandbox(
                     { deferred: true },
                     async ({ window: sandboxWindow, fetchController }) => {
@@ -995,6 +1117,7 @@
                             description: 'Needs conversion'
                         });
 
+                        // Resolve the single startup request before retrying the synchronous report.
                         expectThrow(() => costsDb.getReport('USD'), 'Exchange rates have not loaded yet');
                         fetchController.resolve();
                         await flushAsyncWork();
@@ -1005,8 +1128,10 @@
                 );
             });
 
+            // Repeated reports must consume memory without crossing the network boundary again.
             await test('Exchange torture', 'getReport reuses loaded rates and never performs an extra Fetch', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow, fetchController }) => {
+                    // One converted record ensures each report needs the retained snapshot.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
                         sum: 34,
@@ -1016,6 +1141,7 @@
                     });
                     await flushAsyncWork();
 
+                    // Several target currencies must leave the startup request count unchanged.
                     const fetchCountAfterStartup = fetchController.calls.length;
                     costsDb.getReport('USD');
                     costsDb.getReport('GBP');
@@ -1029,10 +1155,12 @@
                 });
             });
 
+            // The complete currency matrix verifies the shared USD-normalization algorithm.
             await test('Exchange torture', 'Every supported source/target currency pair converts correctly', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     await flushAsyncWork();
 
+                    // Independent databases prevent one currency pair from affecting another total.
                     for (const fromCurrency of supportedCurrencies) {
                         for (const toCurrency of supportedCurrencies) {
                             const costsDb = sandboxWindow.db.openCostsDB(
@@ -1041,6 +1169,7 @@
                             );
                             const amount = 123.456;
 
+                            // Each pair stores its source value before requesting the target report.
                             costsDb.addCost({
                                 sum: amount,
                                 currency: fromCurrency,
@@ -1048,6 +1177,7 @@
                                 description: `${fromCurrency}->${toCurrency}`
                             });
 
+                            // Expected math comes from the harness helper rather than report output.
                             const report = costsDb.getReport(toCurrency);
                             const expected = expectedConversion(amount, fromCurrency, toCurrency);
                             assertApproximately(
@@ -1060,9 +1190,11 @@
                 });
             });
 
+            // Conversion ownership is limited to totals, never original report rows.
             await test('Exchange torture', 'Conversion never rewrites original cost sum/currency in the report', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     await flushAsyncWork();
+                    // A non-USD source makes converted total and original row values visibly different.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
 
                     costsDb.addCost({
@@ -1073,13 +1205,16 @@
                     });
                     const report = costsDb.getReport('USD');
 
+                    // Only the total may change currency; row values must preserve storage identity.
                     assertEqual(report.costs[0].sum, 34, 'Original cost sum was converted');
                     assertEqual(report.costs[0].currency, 'ILS', 'Original cost currency was overwritten');
                     assertApproximately(report.total.sum, 10, 'Converted total is wrong');
                 });
             });
 
+            // Snapshot detachment prevents external payload mutation from changing future reports.
             await test('Exchange torture', 'The retained rate snapshot is detached from later mutation of fetched JSON', async () => {
+                // A mutable payload exposes whether the library copied or aliased fetched data.
                 const mutableRates = {
                     USD: 1,
                     ILS: 3.4,
@@ -1091,6 +1226,7 @@
                     await flushAsyncWork();
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
 
+                    // Mutation occurs only after the startup payload has been accepted.
                     mutableRates.ILS = 999;
                     costsDb.addCost({
                         sum: 34,
@@ -1099,18 +1235,22 @@
                         description: 'must remain 10 USD'
                     });
 
+                    // Conversion must continue using the detached retained snapshot.
                     const report = costsDb.getReport('USD');
                     assertApproximately(report.total.sum, 10, 'Retained rates were aliased to mutable input');
                 });
             });
 
+            // Structurally invalid JSON must never replace the unavailable rate state.
             await test('Exchange torture', 'Invalid rates payload never becomes usable', async () => {
+                // Omitting EURO creates a structurally incomplete response without transport failure.
                 const invalidRates = {
                     USD: 1,
                     ILS: 3.4,
                     GBP: 0.6
                 };
 
+                // Validation failure must leave conversion unavailable and surface a startup error.
                 await withSandbox(
                     { rates: invalidRates },
                     async ({ window: sandboxWindow, capturedErrors }) => {
@@ -1123,13 +1263,16 @@
                             description: 'must fail'
                         });
 
+                        // Both the synchronous consumer and captured console reveal the failed load.
                         expectThrow(() => costsDb.getReport('USD'), 'Exchange rates have not loaded yet');
                         assert(capturedErrors.length > 0, 'Startup rate validation failure was not surfaced to console');
                     }
                 );
             });
 
+            // HTTP rejection and validation rejection share the same safe retained-state outcome.
             await test('Exchange torture', 'HTTP failure leaves cross-currency reporting unavailable', async () => {
+                // A non-OK response exercises transport status handling before JSON parsing.
                 await withSandbox(
                     { ok: false, statusText: 'Server exploded' },
                     async ({ window: sandboxWindow, capturedErrors }) => {
@@ -1142,13 +1285,16 @@
                             description: 'must fail'
                         });
 
+                        // Failed startup preserves the unavailable state and reports its cause.
                         expectThrow(() => costsDb.getReport('USD'), 'Exchange rates have not loaded yet');
                         assert(capturedErrors.length > 0, 'HTTP startup failure was not surfaced to console');
                     }
                 );
             });
 
+            // Parsing failure is isolated from transport status to cover the second response boundary.
             await test('Exchange torture', 'JSON parsing failure leaves cross-currency reporting unavailable', async () => {
+                // A successful HTTP response with invalid JSON isolates the parsing boundary.
                 await withSandbox(
                     { jsonReject: new Error('bad json') },
                     async ({ window: sandboxWindow, capturedErrors }) => {
@@ -1161,6 +1307,7 @@
                             description: 'must fail'
                         });
 
+                        // Parsing failure must behave like every other unsuccessful initial load.
                         expectThrow(() => costsDb.getReport('USD'), 'Exchange rates have not loaded yet');
                         assert(capturedErrors.length > 0, 'JSON startup failure was not surfaced to console');
                     }
@@ -1168,10 +1315,13 @@
             });
         }
 
+        // Aggregation attacks verify totals without collapsing or discarding valid records.
         async function runAggregationAttackTests() {
+            // Mixed sources verify conversion before summation into the target currency.
             await test('Mixed totals', 'Mixed-currency total equals independent expected conversion sum', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     await flushAsyncWork();
+                    // One cost per supported currency exercises a genuinely mixed total.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const costs = [
                         { sum: 50, currency: 'USD', category: 'A', description: 'USD' },
@@ -1182,17 +1332,21 @@
 
                     costs.forEach((cost) => costsDb.addCost(cost));
                     const report = costsDb.getReport('USD');
+                    // Expected aggregation converts each original value independently.
                     const expectedTotal = costs.reduce((sum, cost) => {
                         return sum + expectedConversion(cost.sum, cost.currency, 'USD');
                     }, 0);
 
+                    // Total accuracy and record preservation are separate aggregation guarantees.
                     assertApproximately(report.total.sum, expectedTotal, 'Mixed-currency USD total is wrong');
                     assertEqual(report.costs.length, costs.length, 'Mixed-currency report lost cost items');
                 });
             });
 
+            // Duplicate values remain separate user actions and must not be deduplicated.
             await test('Mixed totals', 'Duplicate costs are preserved as distinct entries', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Reusing the same object three times exposes accidental deduplication by value.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     const cost = {
                         sum: 5,
@@ -1205,14 +1359,17 @@
                     costsDb.addCost(cost);
                     costsDb.addCost(cost);
 
+                    // Both the item count and summed value must reflect all three insertions.
                     const report = costsDb.getReport('USD');
                     assertEqual(report.costs.length, 3, 'Duplicate entries were collapsed');
                     assertEqual(report.total.sum, 15, 'Duplicate entries were not all totaled');
                 });
             });
 
+            // A zero-valued record remains visible even though it contributes nothing to total.
             await test('Mixed totals', 'Adding 0 USD does not poison totals or filtering', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Zero and non-zero entries distinguish preservation from total contribution.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
                         sum: 0,
@@ -1227,14 +1384,17 @@
                         description: 'nine'
                     });
 
+                    // Zero remains visible as a cost while leaving the total unchanged.
                     const report = costsDb.getReport('USD');
                     assertEqual(report.costs.length, 2, 'Zero-valued cost disappeared');
                     assertEqual(report.total.sum, 9, 'Zero-valued cost corrupted the total');
                 });
             });
 
+            // Negative finite values follow the same aggregation rules as every other number.
             await test('Mixed totals', 'Negative costs participate in totals exactly as numeric values', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    // Positive and negative values make subtraction behavior explicit in one report.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
                     costsDb.addCost({
                         sum: 100,
@@ -1249,17 +1409,20 @@
                         description: '-40'
                     });
 
+                    // The aggregate must follow ordinary numeric addition without clamping.
                     assertEqual(costsDb.getReport('USD').total.sum, 60, 'Negative numeric cost was mishandled');
                 });
             });
         }
 
+        // Result rendering converts recorded outcomes into the visible table and summary counters.
         function renderResults() {
             const resultsBody = document.getElementById('results');
             const summary = document.getElementById('summary');
             resultsBody.replaceChildren();
 
             testResults.forEach((result, index) => {
+                // Each row presents only the first stack line to keep failures scannable.
                 const row = document.createElement('tr');
                 const statusClass = result.status === 'PASS' ? 'pass' : 'fail';
                 const details = result.details
@@ -1276,6 +1439,7 @@
                 resultsBody.append(row);
             });
 
+            // Summary counts derive from the same immutable result statuses shown in the table.
             const passed = testResults.filter((result) => result.status === 'PASS').length;
             const failed = testResults.length - passed;
 
@@ -1285,6 +1449,7 @@
                 <span class="${failed === 0 ? 'pass' : 'fail'}"><strong>Failed:</strong> ${failed}</span>
             `;
 
+            // Console output gives automated browser runs a single final pass/fail signal.
             if (failed === 0) {
                 console.log(`😈 Evil db.js torture test: ${passed}/${testResults.length} PASSED`);
             } else {
@@ -1292,6 +1457,7 @@
             }
         }
 
+        // Loading source as text lets each iframe evaluate the exact current Vanilla library.
         async function loadDbSource() {
             const response = await originalFetch('../db.js', { cache: 'no-store' });
 
@@ -1302,6 +1468,7 @@
             dbSource = await response.text();
         }
 
+        // The top-level runner owns sequencing, harness failures, and final UI restoration.
         async function runAllTests() {
             const runButton = document.getElementById('run-tests');
             runButton.disabled = true;
@@ -1309,6 +1476,7 @@
             document.getElementById('summary').textContent = 'Running evil tests…';
             document.getElementById('results').replaceChildren();
 
+            // Test groups run serially so shared result ordering remains deterministic.
             try {
                 await loadDbSource();
                 await runContractTests();

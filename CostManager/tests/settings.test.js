@@ -75,14 +75,14 @@ describe('exchange-rate settings', () => {
         expect(getExchangeRatesUrl()).toBe(defaultRatesUrl);
     });
 
+    // Submission coverage starts from a clean manager and a fully rendered form fixture.
     test('submitting settings immediately starts loading the saved source', async () => {
         const settingsElements = renderSettingsForm();
         const rateManager = { setRatesUrl: jest.fn().mockResolvedValue({ USD: 1 }) };
         const onExplicitRatesLoaded = jest.fn();
 
-        // Bind production handlers before simulating the custom-source submission.
+        // Bind the complete production dependency set before custom-source submission.
         initializeSettingsForm(
-            // Bind all production dependencies to this isolated settings fixture.
             settingsElements.settingsForm,
             settingsElements.defaultButton,
             settingsElements.statusElement,
@@ -122,8 +122,9 @@ describe('exchange-rate settings', () => {
         const rateManager = { setRatesUrl: jest.fn().mockResolvedValue({ USD: 1 }) };
         const onExplicitRatesLoaded = jest.fn();
         saveExchangeRatesUrl('https://example.com/rates.json');
+
+        // Initialization must observe the existing custom source before reset removes it.
         initializeSettingsForm(
-            // Initialization must read the custom URL before reset behavior is exercised.
             settingsElements.settingsForm,
             settingsElements.defaultButton,
             settingsElements.statusElement,
