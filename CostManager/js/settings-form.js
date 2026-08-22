@@ -21,31 +21,50 @@ export function initializeSettingsForm(
     sourceElement,
     // Optional boundaries keep storage and rate loading deterministic in tests.
     storage = localStorage,
-    rateManager = exchangeRateManager
+    rateManager = exchangeRateManager,
+    onExplicitRatesLoaded = () => {}
 ) {
     const ratesUrlInput = settingsForm.elements.namedItem('ratesUrl');
+    const settingsCard = settingsForm.closest('.settings-panel') ?? settingsForm;
     const activeRatesUrl = getExchangeRatesUrl(storage);
     let latestSourceChangeId = 0;
+    let hasDismissibleSuccess = false;
 
     // The blank field represents the default source; custom sources remain editable.
     ratesUrlInput.value = activeRatesUrl === defaultRatesUrl ? '' : activeRatesUrl;
     showCurrentRatesSource(sourceElement, activeRatesUrl);
 
+    // Only successful feedback is dismissed, and clicks inside Settings leave it visible.
+    function handlePageClick(event) {
+        if (!hasDismissibleSuccess || settingsCard.contains(event.target)) {
+            return;
+        }
+
+        statusElement.textContent = '';
+        delete statusElement.dataset.state;
+        hasDismissibleSuccess = false;
+    }
+
     async function activateRatesSource(ratesUrl, successMessage) {
         latestSourceChangeId += 1;
         const sourceChangeId = latestSourceChangeId;
         showSettingsStatus(statusElement, 'Loading exchange rates…', 'pending');
+        hasDismissibleSuccess = false;
 
         try {
             // Existing rates remain active inside the manager until this request succeeds.
             await rateManager.setRatesUrl(ratesUrl);
             if (sourceChangeId === latestSourceChangeId) {
                 showSettingsStatus(statusElement, successMessage, 'success');
+                hasDismissibleSuccess = true;
+                // This callback belongs only to explicit Settings actions, never periodic refreshes.
+                onExplicitRatesLoaded();
             }
         } catch (error) {
             // A failed replacement leaves both the chosen URL and prior valid rates intact.
             if (sourceChangeId === latestSourceChangeId) {
                 showSettingsStatus(statusElement, error.message, 'error');
+                hasDismissibleSuccess = false;
             }
         }
     }
@@ -62,6 +81,7 @@ export function initializeSettingsForm(
         } catch (error) {
             // Invalid input remains intact so the user can correct it in place.
             showSettingsStatus(statusElement, error.message, 'error');
+            hasDismissibleSuccess = false;
         }
     }
 
@@ -75,6 +95,7 @@ export function initializeSettingsForm(
     }
 
     // Each control receives only the handler for its dedicated settings action.
+    document.addEventListener('click', handlePageClick);
     settingsForm.addEventListener('submit', handleSettingsSubmit);
     defaultButton.addEventListener('click', handleDefaultSource);
 }

@@ -11,6 +11,7 @@ async function waitForSettingsUpdate() {
 // Settings tests use the same named input and feedback elements as index.html.
 function renderSettingsForm() {
     document.body.innerHTML = [
+        '<section class="settings-panel">',
         // The form exposes the same named URL boundary used by the production handler.
         '<form id="settings-form">',
         '<input name="ratesUrl" type="url">',
@@ -19,7 +20,9 @@ function renderSettingsForm() {
         // Separate elements expose reset behavior and both accessible feedback outputs.
         '<button id="use-default-rates" type="button">Use Default</button>',
         '<p id="settings-status"></p>',
-        '<strong id="current-rates-source"></strong>'
+        '<strong id="current-rates-source"></strong>',
+        '</section>',
+        '<button id="outside-settings" type="button">Outside</button>'
     ].join('');
 
     // Returning all settings-owned nodes keeps handler dependencies explicit.
@@ -28,7 +31,8 @@ function renderSettingsForm() {
         defaultButton: document.getElementById('use-default-rates'),
         // Feedback and source nodes complete the dependencies used by both handlers.
         statusElement: document.getElementById('settings-status'),
-        sourceElement: document.getElementById('current-rates-source')
+        sourceElement: document.getElementById('current-rates-source'),
+        outsideButton: document.getElementById('outside-settings')
     };
 }
 
@@ -74,6 +78,7 @@ describe('exchange-rate settings', () => {
     test('submitting settings immediately starts loading the saved source', async () => {
         const settingsElements = renderSettingsForm();
         const rateManager = { setRatesUrl: jest.fn().mockResolvedValue({ USD: 1 }) };
+        const onExplicitRatesLoaded = jest.fn();
 
         // Bind production handlers before simulating the custom-source submission.
         initializeSettingsForm(
@@ -83,7 +88,8 @@ describe('exchange-rate settings', () => {
             settingsElements.statusElement,
             settingsElements.sourceElement,
             localStorage,
-            rateManager
+            rateManager,
+            onExplicitRatesLoaded
         );
 
         // A valid custom address should become both stored and visibly active.
@@ -100,12 +106,21 @@ describe('exchange-rate settings', () => {
         // Successful replacement becomes visible after the manager activates its response.
         await waitForSettingsUpdate();
         expect(settingsElements.statusElement.dataset.state).toBe('success');
+        expect(onExplicitRatesLoaded).toHaveBeenCalledTimes(1);
+
+        // Success survives interactions inside Settings and clears on the first outside click.
+        settingsElements.settingsForm.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(settingsElements.statusElement.textContent).toContain('saved and loaded');
+        settingsElements.outsideButton.click();
+        expect(settingsElements.statusElement.textContent).toBe('');
+        expect(settingsElements.statusElement.dataset.state).toBeUndefined();
     });
 
     // Reset behavior covers both storage removal and visible form synchronization.
     test('Use Default removes the custom source and immediately reloads the default', async () => {
         const settingsElements = renderSettingsForm();
         const rateManager = { setRatesUrl: jest.fn().mockResolvedValue({ USD: 1 }) };
+        const onExplicitRatesLoaded = jest.fn();
         saveExchangeRatesUrl('https://example.com/rates.json');
         initializeSettingsForm(
             // Initialization must read the custom URL before reset behavior is exercised.
@@ -114,7 +129,8 @@ describe('exchange-rate settings', () => {
             settingsElements.statusElement,
             settingsElements.sourceElement,
             localStorage,
-            rateManager
+            rateManager,
+            onExplicitRatesLoaded
         );
 
         // Initialization shows the stored source in both the editable and read-only views.
@@ -128,6 +144,7 @@ describe('exchange-rate settings', () => {
         expect(getExchangeRatesUrl()).toBe(defaultRatesUrl);
         await waitForSettingsUpdate();
         expect(settingsElements.statusElement.textContent).toContain('restored');
+        expect(onExplicitRatesLoaded).toHaveBeenCalledTimes(1);
     });
 
     // Invalid form input must stop before persistence or manager activation.

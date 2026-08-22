@@ -27,10 +27,13 @@ export function initializePieChartPanel(chartElements, costsDb, chartRenderer) {
 
             // Rendering replaces the previous chart only when this is still the newest update.
             chartRenderer.render(chartData, selection.currency);
-            const statusMessage = chartData.values.length > 0
-                ? 'Pie chart updated.'
-                : 'No costs were found for the selected month.';
-            showPieStatus(chartElements.statusElement, statusMessage, 'success');
+            if (chartData.values.length > 0) {
+                // A visible chart is sufficient success feedback without redundant text.
+                chartElements.statusElement.textContent = '';
+                delete chartElements.statusElement.dataset.state;
+            } else {
+                showPieStatus(chartElements.statusElement, 'No costs were found for the selected month.', 'success');
+            }
         } catch (error) {
             // Failed synchronous updates clear a chart that no longer matches its controls.
             chartRenderer.clear();

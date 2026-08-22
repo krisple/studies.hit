@@ -157,9 +157,9 @@ export function initializeDetailedReportPanel(reportElements, costsDb) {
        keeping full stored text outside the table layout until the user requests it. */
     setDefaultPeriodSelection(reportElements.form);
     const showFullDescription = initializeDescriptionDialog(reportElements);
+    let hasDisplayedReport = false;
 
-    function handleReportSubmit(event) {
-        event.preventDefault();
+    function updateDetailedReport() {
         showReportStatus(reportElements.statusElement, 'Creating report…', 'pending');
 
         // Rate-dependent work reads the manager snapshot without waiting for the network.
@@ -172,16 +172,33 @@ export function initializeDetailedReportPanel(reportElements, costsDb) {
             const rates = hasCurrencyConversion ? exchangeRateManager.getRates() : null;
             const reportView = buildDetailedReportView(report, selection.currency, rates);
             renderDetailedReport(reportView, reportElements, showFullDescription);
-            showReportStatus(reportElements.statusElement, 'Detailed report updated.', 'success');
+            // Successful rendering needs no extra status message beside the visible report.
+            reportElements.statusElement.textContent = '';
+            delete reportElements.statusElement.dataset.state;
+            hasDisplayedReport = true;
         } catch (error) {
             // Missing initial rates or invalid selection produces immediate panel feedback.
             reportElements.outputElement.hidden = true;
             reportElements.emptyElement.hidden = false;
             reportElements.emptyElement.textContent = 'The detailed report could not be created.';
             showReportStatus(reportElements.statusElement, error.message, 'error');
+            hasDisplayedReport = false;
+        }
+    }
+
+    function handleReportSubmit(event) {
+        event.preventDefault();
+        updateDetailedReport();
+    }
+
+    // Explicit Settings changes refresh only a report that the user already displayed.
+    function refreshIfDisplayed() {
+        if (hasDisplayedReport) {
+            updateDetailedReport();
         }
     }
 
     // Event ownership remains local to this panel's form.
     reportElements.form.addEventListener('submit', handleReportSubmit);
+    return { refreshIfDisplayed };
 }

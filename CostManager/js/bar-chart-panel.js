@@ -23,7 +23,9 @@ export function initializeBarChartPanel(chartElements, costsDb, chartRenderer) {
 
             // Rendering replaces the previous chart only when this is still the newest update.
             chartRenderer.render(chartData, selection.currency);
-            showBarStatus(chartElements.statusElement, 'Bar chart updated.', 'success');
+            // A visible chart is sufficient success feedback without redundant text.
+            chartElements.statusElement.textContent = '';
+            delete chartElements.statusElement.dataset.state;
         } catch (error) {
             // Failed synchronous updates clear a chart that no longer matches its controls.
             chartRenderer.clear();

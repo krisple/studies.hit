@@ -64,11 +64,19 @@ export function initializeApplication() {
     const settingsStatus = getRequiredElement('settings-status');
     const currentRatesSource = getRequiredElement('current-rates-source');
 
-    // Settings changes persist their URL and immediately tell the shared manager to fetch it.
-    initializeSettingsForm(settingsForm, defaultRatesButton, settingsStatus, currentRatesSource);
-
     const detailedReportElements = getDetailedReportElements();
-    initializeDetailedReportPanel(detailedReportElements, costsDb);
+    const detailedReportPanel = initializeDetailedReportPanel(detailedReportElements, costsDb);
+
+    // Explicit source changes refresh an existing report after the new rates become active.
+    initializeSettingsForm(
+        settingsForm,
+        defaultRatesButton,
+        settingsStatus,
+        currentRatesSource,
+        localStorage,
+        exchangeRateManager,
+        detailedReportPanel.refreshIfDisplayed
+    );
 
     // Chart.js is a rendering dependency only; business transformations never access it.
     const pieChartElements = getChartElements('pie');

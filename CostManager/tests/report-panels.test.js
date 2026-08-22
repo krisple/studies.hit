@@ -89,7 +89,7 @@ describe('report and chart operations', () => {
         };
 
         // Explicit selection values represent one requested monthly report operation.
-        initializeDetailedReportPanel(reportElements, costsDb);
+        const detailedReportPanel = initializeDetailedReportPanel(reportElements, costsDb);
         form.elements.month.value = '5';
         form.elements.year.value = '2026';
         form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -100,6 +100,8 @@ describe('report and chart operations', () => {
         expect(reportElements.tableBody.textContent).toContain('40.00 ILS');
         expect(reportElements.tableBody.textContent).toContain('10.00 USD');
         expect(reportElements.totalElement.textContent).toBe('10.00 USD');
+        expect(reportElements.statusElement.textContent).toBe('');
+        expect(reportElements.statusElement.dataset.state).toBeUndefined();
 
         // A manager refresh alone must not mutate the report already rendered in the DOM.
         global.fetch.mockResolvedValueOnce({ ok: true, json: async () => secondRates });
@@ -108,12 +110,39 @@ describe('report and chart operations', () => {
         expect(reportElements.totalElement.textContent).toBe('10.00 USD');
         expect(costsDb.getReport).toHaveBeenCalledTimes(1);
 
-        // A new submission reads the latest manager snapshot for its pure transformation.
-        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        // An explicit Settings callback refreshes the displayed report with active rates.
+        detailedReportPanel.refreshIfDisplayed();
         expect(costsDb.getReport).toHaveBeenCalledTimes(2);
         expect(reportElements.tableBody.textContent).toContain('8.00 USD');
         expect(reportElements.totalElement.textContent).toBe('8.00 USD');
+
+        // A later user submission remains an independent request using the same snapshot.
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        expect(costsDb.getReport).toHaveBeenCalledTimes(3);
+        expect(reportElements.tableBody.textContent).toContain('8.00 USD');
+        expect(reportElements.totalElement.textContent).toBe('8.00 USD');
         expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    test('an explicit rates change does not create a report before one is displayed', () => {
+        const form = createMonthlyForm('detailed-report-form');
+        const reportElements = {
+            form,
+            statusElement: document.createElement('p'),
+            emptyElement: document.createElement('div'),
+            // The guarded refresh uses the same complete dependency shape as production.
+            outputElement: document.createElement('div'),
+            ...createDescriptionDialogElements(),
+            tableBody: document.createElement('tbody'),
+            totalElement: document.createElement('strong')
+        };
+        const costsDb = { getReport: jest.fn() };
+        const detailedReportPanel = initializeDetailedReportPanel(reportElements, costsDb);
+
+        // Settings must leave the untouched initial report prompt unchanged.
+        detailedReportPanel.refreshIfDisplayed();
+        expect(costsDb.getReport).not.toHaveBeenCalled();
+        expect(reportElements.statusElement.textContent).toBe('');
     });
 
     // Description disclosure is a report-only presentation behavior with no DB shape changes.
@@ -177,6 +206,8 @@ describe('report and chart operations', () => {
         // Initialization creates the chart immediately from the current period defaults.
         initializePieChartPanel(chartElements, costsDb, chartRenderer);
         expect(chartRenderer.render).toHaveBeenCalledTimes(1);
+        expect(chartElements.statusElement.textContent).toBe('');
+        expect(chartElements.statusElement.dataset.state).toBeUndefined();
 
         // Clear initial-load observations before exercising one automatic change update.
         costsDb.getReport.mockClear();
@@ -229,6 +260,8 @@ describe('report and chart operations', () => {
         // Initialization creates the twelve-month chart from the current year defaults.
         initializeBarChartPanel(chartElements, costsDb, chartRenderer);
         expect(costsDb.getReport).toHaveBeenCalledTimes(12);
+        expect(chartElements.statusElement.textContent).toBe('');
+        expect(chartElements.statusElement.dataset.state).toBeUndefined();
 
         // Clear initial-load observations before exercising one automatic year update.
         costsDb.getReport.mockClear();
