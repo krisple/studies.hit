@@ -75,7 +75,7 @@ describe('exchange.js logic', () => {
 
         // The default path is asserted alongside the validated object returned to the caller.
         const fetchedRates = await fetchExchangeRates();
-        expect(global.fetch).toHaveBeenCalledWith('rates.json');
+        expect(global.fetch).toHaveBeenCalledWith('rates/default/rates.json');
         expect(fetchedRates).toEqual(ratePayload);
     });
 
@@ -117,8 +117,8 @@ describe('exchange.js logic', () => {
 
         // Two direct helper invocations must produce two network requests.
         expect(global.fetch).toHaveBeenCalledTimes(2);
-        expect(global.fetch).toHaveBeenNthCalledWith(1, 'rates.json');
-        expect(global.fetch).toHaveBeenNthCalledWith(2, 'rates.json');
+        expect(global.fetch).toHaveBeenNthCalledWith(1, 'rates/default/rates.json');
+        expect(global.fetch).toHaveBeenNthCalledWith(2, 'rates/default/rates.json');
         expect(firstFetchedRates).toEqual(firstRatePayload);
         expect(secondFetchedRates).toEqual(secondRatePayload);
     });

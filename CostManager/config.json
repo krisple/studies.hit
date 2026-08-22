@@ -1,0 +1,6 @@
+{
+  "databaseName": "cost-manager",
+  "databaseVersion": 1,
+  "defaultRatesUrl": "rates/default/rates.json",
+  "exchangeRatesRefreshIntervalMs": 60000
+}

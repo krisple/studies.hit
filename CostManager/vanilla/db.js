@@ -5,7 +5,7 @@
 (function () {
     // The Vanilla API exposes only the factory; each returned object retains its database name.
     const supportedCurrencies = ['USD', 'ILS', 'GBP', 'EURO'];
-    const defaultRatesUrl = 'rates.json';
+    const defaultRatesUrl = 'rates/default/rates.json';
     let activeExchangeRates = null;
 
     // Vanilla validates every required rate before replacing its retained snapshot.

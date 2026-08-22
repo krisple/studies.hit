@@ -39,7 +39,7 @@ describe('standalone Vanilla db.js', () => {
         // Evaluating the classic script must expose db and start Fetch immediately.
         window.eval(vanillaSource);
         expect(window.db).toBeDefined();
-        expect(global.fetch).toHaveBeenCalledWith('rates.json');
+        expect(global.fetch).toHaveBeenCalledWith('rates/default/rates.json');
         const costsDb = window.db.openCostsDB('vanilla-test', 1);
         costsDb.addCost({ sum: 40, currency: 'ILS', category: 'Food', description: 'Lunch' });
 

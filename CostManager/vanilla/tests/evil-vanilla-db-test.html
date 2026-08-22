@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evil db.js Torture Test</title>
+    <style>
+        body {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 32px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.45;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+        }
+
+        .note {
+            padding: 12px 14px;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+        }
+
+        .summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 22px 0;
+        }
+
+        .summary span {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 999px;
+        }
+
+        button {
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            padding: 9px 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .pass {
+            color: #147a39;
+            font-weight: 700;
+        }
+
+        .fail {
+            color: #b42318;
+            font-weight: 700;
+        }
+
+        .warn {
+            color: #8a5a00;
+            font-weight: 700;
+        }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>😈 Evil db.js Torture Test</h1>
+    <p>
+        Browser-only torture test for the standalone <code>db.js</code>.
+        It deliberately attacks the public contract, storage integrity, date logic,
+        currency conversion, synchronous behavior, Fetch behavior, and malformed state.
+    </p>
+
+    <div class="note">
+        <strong>Run this file through HTTP/HTTPS from the project root.</strong>
+        Do not open it directly with <code>file://</code>, because Fetch/localStorage behavior may differ.
+        For example: <code>python3 -m http.server 8080</code>.
+    </div>
+
+    <p>
+        <button id="run-tests" type="button">Run evil tests</button>
+    </p>
+
+    <div id="summary" class="summary"></div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Group</th>
+                <th>Test</th>
+                <th>Status</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody id="results"></tbody>
+    </table>
+
+    <script>
+        const expectedRates = Object.freeze({
+            USD: 1,
+            ILS: 3.4,
+            GBP: 0.6,
+            EURO: 0.7
+        });
+
+        const supportedCurrencies = ['USD', 'ILS', 'GBP', 'EURO'];
+        const originalFetch = window.fetch.bind(window);
+        const testResults = [];
+        let dbSource = '';
+
+        // Tiny assertion helpers keep every test readable and produce useful failure messages.
+        function fail(message) {
+            throw new Error(message);
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                fail(message);
+            }
+        }
+
+        function assertEqual(actual, expected, message) {
+            if (!Object.is(actual, expected)) {
+                fail(`${message}. Expected ${String(expected)}, received ${String(actual)}`);
+            }
+        }
+
+        function assertApproximately(actual, expected, message, epsilon = 1e-9) {
+            if (Math.abs(actual - expected) > epsilon) {
+                fail(`${message}. Expected approximately ${expected}, received ${actual}`);
+            }
+        }
+
+        function normalize(value) {
+            return JSON.parse(JSON.stringify(value));
+        }
+
+        function assertDeepEqual(actual, expected, message) {
+            const actualJson = JSON.stringify(normalize(actual));
+            const expectedJson = JSON.stringify(normalize(expected));
+
+            if (actualJson !== expectedJson) {
+                fail(`${message}. Expected ${expectedJson}, received ${actualJson}`);
+            }
+        }
+
+        function expectThrow(callback, expectedMessagePart) {
+            let thrownError = null;
+
+            try {
+                callback();
+            } catch (error) {
+                thrownError = error;
+            }
+
+            assert(thrownError instanceof Error || thrownError, 'Expected the operation to throw');
+            if (expectedMessagePart) {
+                assert(
+                    String(thrownError.message).includes(expectedMessagePart),
+                    `Expected error containing "${expectedMessagePart}", received "${thrownError.message}"`
+                );
+            }
+
+            return thrownError;
+        }
+
+        async function expectReject(promise, expectedMessagePart) {
+            let rejection = null;
+
+            try {
+                await promise;
+            } catch (error) {
+                rejection = error;
+            }
+
+            assert(rejection, 'Expected the promise to reject');
+            if (expectedMessagePart) {
+                assert(
+                    String(rejection.message).includes(expectedMessagePart),
+                    `Expected rejection containing "${expectedMessagePart}", received "${rejection.message}"`
+                );
+            }
+        }
+
+        // Microtask flushing makes mocked startup Fetch behavior deterministic across browsers.
+        async function flushAsyncWork(turns = 6) {
+            for (let index = 0; index < turns; index += 1) {
+                await Promise.resolve();
+            }
+        }
+
+        function createFetchController(options = {}) {
+            const calls = [];
+            const {
+                rates = expectedRates,
+                ok = true,
+                statusText = 'OK',
+                deferred = false,
+                jsonReject = null
+            } = options;
+
+            let resolveRequest;
+            let rejectRequest;
+
+            const deferredResponse = deferred
+                ? new Promise((resolve, reject) => {
+                    resolveRequest = resolve;
+                    rejectRequest = reject;
+                })
+                : null;
+
+            function makeResponse() {
+                return {
+                    ok,
+                    statusText,
+                    json: async () => {
+                        if (jsonReject) {
+                            throw jsonReject;
+                        }
+
+                        return { ...rates };
+                    }
+                };
+            }
+
+            function fetchMock(url) {
+                calls.push(String(url));
+
+                if (deferred) {
+                    return deferredResponse;
+                }
+
+                return Promise.resolve(makeResponse());
+            }
+
+            return {
+                calls,
+                fetchMock,
+                resolve() {
+                    if (deferred) {
+                        resolveRequest(makeResponse());
+                    }
+                },
+                reject(error) {
+                    if (deferred) {
+                        rejectRequest(error);
+                    }
+                }
+            };
+        }
+
+        // Each sandbox evaluates the real db.js in a fresh same-origin iframe.
+        async function createSandbox(fetchOptions = {}) {
+            const frame = document.createElement('iframe');
+            frame.hidden = true;
+            document.body.append(frame);
+
+            const sandboxWindow = frame.contentWindow;
+            const fetchController = createFetchController(fetchOptions);
+            const intervalIds = [];
+            const capturedErrors = [];
+            const nativeSetInterval = sandboxWindow.setInterval.bind(sandboxWindow);
+            const nativeClearInterval = sandboxWindow.clearInterval.bind(sandboxWindow);
+
+            // The test records accidental periodic scheduling without changing timer semantics.
+            sandboxWindow.setInterval = (...args) => {
+                const intervalId = nativeSetInterval(...args);
+                intervalIds.push(intervalId);
+                return intervalId;
+            };
+            sandboxWindow.fetch = fetchController.fetchMock;
+            sandboxWindow.console.error = (...args) => {
+                capturedErrors.push(args.map(String).join(' '));
+            };
+
+            sandboxWindow.eval(dbSource);
+            await flushAsyncWork();
+
+            function cleanup() {
+                intervalIds.forEach((intervalId) => nativeClearInterval(intervalId));
+                frame.remove();
+            }
+
+            return {
+                window: sandboxWindow,
+                fetchController,
+                intervalIds,
+                capturedErrors,
+                cleanup
+            };
+        }
+
+        function uniqueDatabaseName(prefix = 'evil') {
+            return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        }
+
+        function findStorageKeyContaining(storage, marker) {
+            for (let index = 0; index < storage.length; index += 1) {
+                const key = storage.key(index);
+                const value = storage.getItem(key);
+
+                if (typeof value === 'string' && value.includes(marker)) {
+                    return key;
+                }
+            }
+
+            return null;
+        }
+
+        function currentDateParts() {
+            const today = new Date();
+
+            return {
+                day: today.getDate(),
+                month: today.getMonth() + 1,
+                year: today.getFullYear()
+            };
+        }
+
+        function expectedConversion(amount, fromCurrency, toCurrency, rates = expectedRates) {
+            if (fromCurrency === toCurrency) {
+                return amount;
+            }
+
+            return (amount / rates[fromCurrency]) * rates[toCurrency];
+        }
+
+        async function test(group, name, callback) {
+            try {
+                await callback();
+                testResults.push({ group, name, status: 'PASS', details: '' });
+            } catch (error) {
+                testResults.push({
+                    group,
+                    name,
+                    status: 'FAIL',
+                    details: error && error.stack ? error.stack : String(error)
+                });
+            }
+        }
+
+        async function withSandbox(fetchOptions, callback) {
+            const sandbox = await createSandbox(fetchOptions);
+
+            try {
+                await callback(sandbox);
+            } finally {
+                sandbox.cleanup();
+            }
+        }
+
+        // This is the professor-style happy path, then progressively more hostile cases.
+        async function runContractTests() {
+            await test('Contract', 'Global db object exists and exposes openCostsDB', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    assert(sandboxWindow.db, 'window.db was not created');
+                    assertEqual(typeof sandboxWindow.db.openCostsDB, 'function', 'openCostsDB must be a function');
+                });
+            });
+
+            await test('Contract', 'db exposes no accidental public application API', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    assertDeepEqual(
+                        Object.keys(sandboxWindow.db).sort(),
+                        ['openCostsDB'],
+                        'Unexpected public properties were exposed on db'
+                    );
+                    assertEqual(sandboxWindow.exchange, undefined, 'Unexpected global exchange object leaked');
+                    assertEqual(
+                        sandboxWindow.exchangeRateManager,
+                        undefined,
+                        'Unexpected global exchangeRateManager leaked'
+                    );
+                });
+            });
+
+            await test('Contract', 'openCostsDB returns addCost and getReport instance methods', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+
+                    assertEqual(typeof costsDb.addCost, 'function', 'addCost must be a function');
+                    assertEqual(typeof costsDb.getReport, 'function', 'getReport must be a function');
+                    assertEqual(costsDb.getReport.length, 3, 'getReport must keep the 3-argument signature');
+                });
+            });
+
+            await test('Contract', 'Professor smoke test: 200 USD + 400 USD = 600 USD', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName('professor'), 1);
+                    const first = costsDb.addCost({
+                        sum: 200,
+                        currency: 'USD',
+                        category: 'FOOD',
+                        description: 'pizza'
+                    });
+                    const second = costsDb.addCost({
+                        sum: 400,
+                        currency: 'USD',
+                        category: 'CAR',
+                        description: 'fuel'
+                    });
+                    const report = costsDb.getReport('USD');
+
+                    assert(first, 'First addCost result is missing');
+                    assert(second, 'Second addCost result is missing');
+                    assertEqual(report.total.sum, 600, 'Professor total is wrong');
+                });
+            });
+
+            await test('Contract', 'addCost return shape is exact and does not expose date or extras', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const input = {
+                        sum: 12.5,
+                        currency: 'USD',
+                        category: 'Food',
+                        description: 'Lunch',
+                        evilExtraField: 'must not leak'
+                    };
+                    const added = costsDb.addCost(input);
+
+                    assertDeepEqual(
+                        added,
+                        {
+                            sum: 12.5,
+                            currency: 'USD',
+                            category: 'Food',
+                            description: 'Lunch'
+                        },
+                        'addCost returned the wrong public shape'
+                    );
+                    assertEqual(added.date, undefined, 'addCost must not expose its internal date');
+                    assertEqual(added.evilExtraField, undefined, 'Unknown input fields must not leak');
+                });
+            });
+
+            await test('Contract', 'getReport is synchronous and returns a plain object', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 10,
+                        currency: 'USD',
+                        category: 'Test',
+                        description: 'Sync'
+                    });
+                    const report = costsDb.getReport('USD');
+
+                    assert(!(report instanceof Promise), 'getReport unexpectedly returned a Promise');
+                    assertEqual(typeof report, 'object', 'getReport must return an object');
+                });
+            });
+        }
+
+        async function runAddCostAttackTests() {
+            await test('addCost attacks', 'Rejects invalid database identity types', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    expectThrow(() => sandboxWindow.db.openCostsDB(123, 1), 'databaseName');
+                    expectThrow(() => sandboxWindow.db.openCostsDB('name', '1'), 'databaseVersion');
+                    expectThrow(() => sandboxWindow.db.openCostsDB('name', NaN), 'databaseVersion');
+                    expectThrow(() => sandboxWindow.db.openCostsDB('name', Infinity), 'databaseVersion');
+                });
+            });
+
+            await test('addCost attacks', 'Rejects null, missing, string, NaN and infinite sums', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const base = {
+                        currency: 'USD',
+                        category: 'Food',
+                        description: 'x'
+                    };
+
+                    expectThrow(() => costsDb.addCost(null));
+                    expectThrow(() => costsDb.addCost({ ...base }));
+                    expectThrow(() => costsDb.addCost({ ...base, sum: '10' }));
+                    expectThrow(() => costsDb.addCost({ ...base, sum: NaN }));
+                    expectThrow(() => costsDb.addCost({ ...base, sum: Infinity }));
+                    expectThrow(() => costsDb.addCost({ ...base, sum: -Infinity }));
+                });
+            });
+
+            await test('addCost attacks', 'Rejects unsupported, lowercase and non-string currencies', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const makeCost = (currency) => ({
+                        sum: 10,
+                        currency,
+                        category: 'Food',
+                        description: 'x'
+                    });
+
+                    expectThrow(() => costsDb.addCost(makeCost('YEN')), 'supported currencies');
+                    expectThrow(() => costsDb.addCost(makeCost('usd')), 'supported currencies');
+                    expectThrow(() => costsDb.addCost(makeCost(123)), 'supported currencies');
+                    expectThrow(() => costsDb.addCost(makeCost(null)), 'supported currencies');
+                });
+            });
+
+            await test('addCost attacks', 'Rejects non-string category and description', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+
+                    expectThrow(() => costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: 123,
+                        description: 'ok'
+                    }));
+                    expectThrow(() => costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: 'ok',
+                        description: {}
+                    }));
+                });
+            });
+
+            await test('addCost attacks', 'Accepts and preserves zero, negative and decimal numeric sums', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const values = [0, -15.75, 0.000001, 999999999.125];
+
+                    values.forEach((sum, index) => {
+                        const added = costsDb.addCost({
+                            sum,
+                            currency: 'USD',
+                            category: `C${index}`,
+                            description: `D${index}`
+                        });
+                        assertEqual(added.sum, sum, `Numeric sum ${sum} was not preserved`);
+                    });
+                });
+            });
+
+            await test('addCost attacks', 'Preserves Unicode, HTML-like text and __proto__ as literal strings', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const category = '__proto__';
+                    const description = '<img src=x onerror=alert(1)> עברית 😀 & "quotes"';
+                    const added = costsDb.addCost({
+                        sum: 5,
+                        currency: 'USD',
+                        category,
+                        description
+                    });
+
+                    assertEqual(added.category, category, 'Category text changed');
+                    assertEqual(added.description, description, 'Description text changed');
+                });
+            });
+
+            await test('addCost attacks', 'Does not mutate the caller input object', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const input = {
+                        sum: 33,
+                        currency: 'USD',
+                        category: 'Stable',
+                        description: 'Caller owned'
+                    };
+                    const before = JSON.stringify(input);
+
+                    costsDb.addCost(input);
+                    assertEqual(JSON.stringify(input), before, 'addCost mutated the caller object');
+                    assertEqual(input.date, undefined, 'addCost attached date to the caller object');
+                });
+            });
+
+            await test('addCost attacks', 'Later caller mutation cannot rewrite the stored cost', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const input = {
+                        sum: 17,
+                        currency: 'USD',
+                        category: 'Before',
+                        description: 'Before'
+                    };
+
+                    costsDb.addCost(input);
+                    input.sum = 9999;
+                    input.currency = 'GBP';
+                    input.category = 'After';
+                    input.description = 'After';
+
+                    const report = costsDb.getReport('USD');
+                    assertEqual(report.costs[0].sum, 17, 'Stored sum followed caller mutation');
+                    assertEqual(report.costs[0].currency, 'USD', 'Stored currency followed caller mutation');
+                    assertEqual(report.costs[0].category, 'Before', 'Stored category followed caller mutation');
+                    assertEqual(report.costs[0].description, 'Before', 'Stored description followed caller mutation');
+                });
+            });
+
+            await test('addCost attacks', 'Very long text is preserved instead of truncated', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const longText = 'אבגXYZ😀'.repeat(1500);
+                    costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: longText,
+                        description: longText
+                    });
+
+                    const report = costsDb.getReport('USD');
+                    assertEqual(report.costs[0].category, longText, 'Long category was truncated or modified');
+                    assertEqual(report.costs[0].description, longText, 'Long description was truncated or modified');
+                });
+            });
+        }
+
+        async function runDateAndStorageTests() {
+            await test('Date/storage', 'Stored record receives the real current full date', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const marker = `marker-${Math.random()}`;
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: 'Date',
+                        description: marker
+                    });
+
+                    const storageKey = findStorageKeyContaining(sandboxWindow.localStorage, marker);
+                    assert(storageKey, 'Could not locate the persisted record in localStorage');
+
+                    const storedCosts = JSON.parse(sandboxWindow.localStorage.getItem(storageKey));
+                    const today = currentDateParts();
+
+                    assertDeepEqual(storedCosts[0].date, today, 'Stored date is not the insertion date');
+                });
+            });
+
+            await test('Date/storage', 'Report item exposes only date.day while period stays at report level', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 4,
+                        currency: 'USD',
+                        category: 'Date',
+                        description: 'Public date'
+                    });
+
+                    const report = costsDb.getReport('USD');
+                    const today = currentDateParts();
+
+                    assertEqual(report.year, today.year, 'Report year is wrong');
+                    assertEqual(report.month, today.month, 'Report month is wrong');
+                    assertDeepEqual(report.costs[0].date, { day: today.day }, 'Report cost date shape is wrong');
+                });
+            });
+
+            await test('Date/storage', 'Reopening the same database sees previously persisted costs', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const databaseName = uniqueDatabaseName('reopen');
+                    const firstInstance = sandboxWindow.db.openCostsDB(databaseName, 1);
+                    firstInstance.addCost({
+                        sum: 21,
+                        currency: 'USD',
+                        category: 'Persist',
+                        description: 'Across instances'
+                    });
+
+                    const secondInstance = sandboxWindow.db.openCostsDB(databaseName, 1);
+                    const report = secondInstance.getReport('USD');
+
+                    assertEqual(report.costs.length, 1, 'Reopened database lost the stored item');
+                    assertEqual(report.total.sum, 21, 'Reopened database total is wrong');
+                });
+            });
+
+            await test('Date/storage', 'Different database names stay isolated', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const firstDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName('first'), 1);
+                    const secondDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName('second'), 1);
+
+                    firstDb.addCost({
+                        sum: 10,
+                        currency: 'USD',
+                        category: 'First',
+                        description: 'only first'
+                    });
+                    secondDb.addCost({
+                        sum: 99,
+                        currency: 'USD',
+                        category: 'Second',
+                        description: 'only second'
+                    });
+
+                    assertEqual(firstDb.getReport('USD').total.sum, 10, 'First database was contaminated');
+                    assertEqual(secondDb.getReport('USD').total.sum, 99, 'Second database was contaminated');
+                });
+            });
+
+            await test('Date/storage', 'Historical year/month filtering returns only matching records', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const marker = `history-${Math.random()}`;
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName('history'), 1);
+                    costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: 'Current',
+                        description: marker
+                    });
+
+                    const storageKey = findStorageKeyContaining(sandboxWindow.localStorage, marker);
+                    const storedCosts = JSON.parse(sandboxWindow.localStorage.getItem(storageKey));
+                    storedCosts.push({
+                        sum: 50,
+                        currency: 'USD',
+                        category: 'Historical',
+                        description: 'May 2020',
+                        date: { day: 7, month: 5, year: 2020 }
+                    });
+                    storedCosts.push({
+                        sum: 60,
+                        currency: 'USD',
+                        category: 'Wrong month',
+                        description: 'June 2020',
+                        date: { day: 8, month: 6, year: 2020 }
+                    });
+                    sandboxWindow.localStorage.setItem(storageKey, JSON.stringify(storedCosts));
+
+                    const report = costsDb.getReport('USD', 2020, 5);
+                    assertEqual(report.costs.length, 1, 'Historical filter included the wrong records');
+                    assertEqual(report.costs[0].description, 'May 2020', 'Historical filter returned wrong record');
+                    assertEqual(report.total.sum, 50, 'Historical total is wrong');
+                });
+            });
+
+            await test('Date/storage', 'Empty period returns an empty costs array and zero total', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const report = costsDb.getReport('USD', 1901, 1);
+
+                    assertDeepEqual(report.costs, [], 'Empty report costs must be []');
+                    assertEqual(report.total.sum, 0, 'Empty report total must be zero');
+                    assertEqual(report.total.currency, 'USD', 'Empty report currency is wrong');
+                });
+            });
+
+            await test('Date/storage', 'Mutating a returned report cannot mutate localStorage', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 18,
+                        currency: 'USD',
+                        category: 'Safe',
+                        description: 'Original'
+                    });
+
+                    const firstReport = costsDb.getReport('USD');
+                    firstReport.costs[0].sum = 999;
+                    firstReport.costs[0].category = 'Hacked';
+                    firstReport.costs[0].date.day = 31;
+
+                    const secondReport = costsDb.getReport('USD');
+                    assertEqual(secondReport.costs[0].sum, 18, 'Report mutation changed persisted sum');
+                    assertEqual(secondReport.costs[0].category, 'Safe', 'Report mutation changed persisted category');
+                    assertEqual(
+                        secondReport.costs[0].date.day,
+                        currentDateParts().day,
+                        'Report mutation changed persisted date'
+                    );
+                });
+            });
+
+            await test('Date/storage', 'Malformed JSON and non-array storage are rejected', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const databaseName = uniqueDatabaseName('corrupt');
+                    const costsDb = sandboxWindow.db.openCostsDB(databaseName, 1);
+                    const storageKey = `costsdb_${databaseName}`;
+
+                    sandboxWindow.localStorage.setItem(storageKey, '{broken json');
+                    expectThrow(() => costsDb.getReport('USD'), 'Failed to load costs database');
+
+                    sandboxWindow.localStorage.setItem(storageKey, '{"not":"array"}');
+                    expectThrow(() => costsDb.getReport('USD'), 'Stored data is not an array');
+
+                    sandboxWindow.localStorage.setItem(storageKey, '');
+                    expectThrow(() => costsDb.getReport('USD'), 'Failed to load costs database');
+                });
+            });
+
+            await test('Date/storage', 'Corrupted stored fields and dates are rejected', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const databaseName = uniqueDatabaseName('corruptFields');
+                    const costsDb = sandboxWindow.db.openCostsDB(databaseName, 1);
+                    const storageKey = `costsdb_${databaseName}`;
+                    const base = {
+                        sum: 10,
+                        currency: 'USD',
+                        category: 'Food',
+                        description: 'x',
+                        date: { day: 1, month: 1, year: 2020 }
+                    };
+
+                    const corruptRecords = [
+                        { ...base, sum: '10' },
+                        { ...base, currency: 'YEN' },
+                        { ...base, category: 5 },
+                        { ...base, description: null },
+                        { ...base, date: null },
+                        { ...base, date: { day: 0, month: 1, year: 2020 } },
+                        { ...base, date: { day: 32, month: 1, year: 2020 } },
+                        { ...base, date: { day: 1, month: 0, year: 2020 } },
+                        { ...base, date: { day: 1, month: 13, year: 2020 } },
+                        { ...base, date: { day: '1', month: 1, year: 2020 } }
+                    ];
+
+                    corruptRecords.forEach((record) => {
+                        sandboxWindow.localStorage.setItem(storageKey, JSON.stringify([record]));
+                        expectThrow(() => costsDb.getReport('USD'), 'Failed to load costs database');
+                    });
+                });
+            });
+
+            await test('Date/storage', 'addCost refuses to hide or overwrite an already corrupted database', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const databaseName = uniqueDatabaseName('corruptWrite');
+                    const costsDb = sandboxWindow.db.openCostsDB(databaseName, 1);
+                    const storageKey = `costsdb_${databaseName}`;
+                    sandboxWindow.localStorage.setItem(storageKey, '{"bad":"shape"}');
+
+                    expectThrow(() => costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: 'Nope',
+                        description: 'must fail'
+                    }), 'Failed to load costs database');
+
+                    assertEqual(
+                        sandboxWindow.localStorage.getItem(storageKey),
+                        '{"bad":"shape"}',
+                        'Corrupted storage was silently overwritten'
+                    );
+                });
+            });
+        }
+
+        async function runReportBoundaryTests() {
+            await test('Report attacks', 'Missing and unsupported target currencies are rejected', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+
+                    expectThrow(() => costsDb.getReport(), 'Report currency');
+                    expectThrow(() => costsDb.getReport('YEN'), 'supported currencies');
+                    expectThrow(() => costsDb.getReport('usd'), 'supported currencies');
+                    expectThrow(() => costsDb.getReport(123), 'Report currency');
+                });
+            });
+
+            await test('Report attacks', 'Invalid year and month boundaries are rejected', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+
+                    expectThrow(() => costsDb.getReport('USD', '2026', 8), 'Year must be an integer');
+                    expectThrow(() => costsDb.getReport('USD', 2026.5, 8), 'Year must be an integer');
+                    expectThrow(() => costsDb.getReport('USD', NaN, 8), 'Year must be an integer');
+                    expectThrow(() => costsDb.getReport('USD', 2026, '8'), 'month must be between 1 and 12');
+                    expectThrow(() => costsDb.getReport('USD', 2026, 0), 'month must be between 1 and 12');
+                    expectThrow(() => costsDb.getReport('USD', 2026, 13), 'month must be between 1 and 12');
+                    expectThrow(() => costsDb.getReport('USD', 2026, 1.5), 'month must be between 1 and 12');
+                });
+            });
+
+            await test('Report attacks', 'Omitted year and month default to the current period', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const today = currentDateParts();
+                    const report = costsDb.getReport('USD');
+
+                    assertEqual(report.year, today.year, 'Default year is wrong');
+                    assertEqual(report.month, today.month, 'Default month is wrong');
+                });
+            });
+
+            await test('Report attacks', 'Partial omission defaults each missing period component independently', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const today = currentDateParts();
+                    const yearOnly = costsDb.getReport('USD', 2020);
+                    const monthOnly = costsDb.getReport('USD', undefined, 5);
+
+                    assertEqual(yearOnly.year, 2020, 'Explicit year was ignored');
+                    assertEqual(yearOnly.month, today.month, 'Missing month did not default');
+                    assertEqual(monthOnly.year, today.year, 'Missing year did not default');
+                    assertEqual(monthOnly.month, 5, 'Explicit month was ignored');
+                });
+            });
+
+            await test('Report attacks', 'Report shape is exact and total currency matches the request', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 8,
+                        currency: 'USD',
+                        category: 'Shape',
+                        description: 'Exact'
+                    });
+                    const report = costsDb.getReport('USD');
+
+                    assertDeepEqual(
+                        Object.keys(report).sort(),
+                        ['costs', 'month', 'total', 'year'],
+                        'Unexpected top-level report keys'
+                    );
+                    assertDeepEqual(
+                        Object.keys(report.costs[0]).sort(),
+                        ['category', 'currency', 'date', 'description', 'sum'],
+                        'Unexpected report cost keys'
+                    );
+                    assertDeepEqual(
+                        Object.keys(report.total).sort(),
+                        ['currency', 'sum'],
+                        'Unexpected total keys'
+                    );
+                    assertEqual(report.total.currency, 'USD', 'Wrong report total currency');
+                });
+            });
+        }
+
+        async function runExchangeRateTortureTests() {
+            await test('Exchange torture', 'Standalone db.js starts exactly one default rates.json Fetch', async () => {
+                await withSandbox({}, async ({ fetchController }) => {
+                    assertEqual(fetchController.calls.length, 1, 'Startup made the wrong number of Fetch calls');
+                    assertEqual(
+                        fetchController.calls[0],
+                        'rates/default/rates.json',
+                        'Startup fetched the wrong default URL'
+                    );
+                });
+            });
+
+            await test('Exchange torture', 'Standalone db.js does not register a periodic refresh timer', async () => {
+                await withSandbox({}, async ({ intervalIds }) => {
+                    assertEqual(intervalIds.length, 0, 'Standalone db.js unexpectedly registered setInterval');
+                });
+            });
+
+            await test('Exchange torture', 'Same-currency report works while startup rates are still pending', async () => {
+                await withSandbox({ deferred: true }, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 25,
+                        currency: 'USD',
+                        category: 'Pending',
+                        description: 'Identity conversion'
+                    });
+
+                    const report = costsDb.getReport('USD');
+                    assertEqual(report.total.sum, 25, 'Identity report incorrectly depends on pending rates');
+                });
+            });
+
+            await test('Exchange torture', 'Cross-currency getReport throws synchronously before initial rates load', async () => {
+                await withSandbox({ deferred: true }, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 34,
+                        currency: 'ILS',
+                        category: 'Pending',
+                        description: 'Needs conversion'
+                    });
+
+                    const error = expectThrow(
+                        () => costsDb.getReport('USD'),
+                        'Exchange rates have not loaded yet'
+                    );
+                    assert(!(error instanceof Promise), 'The synchronous error somehow became a Promise');
+                });
+            });
+
+            await test('Exchange torture', 'Pending cross-currency report succeeds after the startup Fetch resolves', async () => {
+                await withSandbox(
+                    { deferred: true },
+                    async ({ window: sandboxWindow, fetchController }) => {
+                        const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                        costsDb.addCost({
+                            sum: 34,
+                            currency: 'ILS',
+                            category: 'Pending',
+                            description: 'Needs conversion'
+                        });
+
+                        expectThrow(() => costsDb.getReport('USD'), 'Exchange rates have not loaded yet');
+                        fetchController.resolve();
+                        await flushAsyncWork();
+
+                        const report = costsDb.getReport('USD');
+                        assertApproximately(report.total.sum, 10, 'ILS to USD conversion is wrong after load');
+                    }
+                );
+            });
+
+            await test('Exchange torture', 'getReport reuses loaded rates and never performs an extra Fetch', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow, fetchController }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 34,
+                        currency: 'ILS',
+                        category: 'Reuse',
+                        description: 'No extra fetch'
+                    });
+                    await flushAsyncWork();
+
+                    const fetchCountAfterStartup = fetchController.calls.length;
+                    costsDb.getReport('USD');
+                    costsDb.getReport('GBP');
+                    costsDb.getReport('EURO');
+
+                    assertEqual(
+                        fetchController.calls.length,
+                        fetchCountAfterStartup,
+                        'getReport started an unexpected Fetch'
+                    );
+                });
+            });
+
+            await test('Exchange torture', 'Every supported source/target currency pair converts correctly', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    await flushAsyncWork();
+
+                    for (const fromCurrency of supportedCurrencies) {
+                        for (const toCurrency of supportedCurrencies) {
+                            const costsDb = sandboxWindow.db.openCostsDB(
+                                uniqueDatabaseName(`${fromCurrency}_${toCurrency}`),
+                                1
+                            );
+                            const amount = 123.456;
+
+                            costsDb.addCost({
+                                sum: amount,
+                                currency: fromCurrency,
+                                category: 'FX',
+                                description: `${fromCurrency}->${toCurrency}`
+                            });
+
+                            const report = costsDb.getReport(toCurrency);
+                            const expected = expectedConversion(amount, fromCurrency, toCurrency);
+                            assertApproximately(
+                                report.total.sum,
+                                expected,
+                                `${fromCurrency} to ${toCurrency} conversion failed`
+                            );
+                        }
+                    }
+                });
+            });
+
+            await test('Exchange torture', 'Conversion never rewrites original cost sum/currency in the report', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    await flushAsyncWork();
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+
+                    costsDb.addCost({
+                        sum: 34,
+                        currency: 'ILS',
+                        category: 'Original',
+                        description: 'Keep me'
+                    });
+                    const report = costsDb.getReport('USD');
+
+                    assertEqual(report.costs[0].sum, 34, 'Original cost sum was converted');
+                    assertEqual(report.costs[0].currency, 'ILS', 'Original cost currency was overwritten');
+                    assertApproximately(report.total.sum, 10, 'Converted total is wrong');
+                });
+            });
+
+            await test('Exchange torture', 'The retained rate snapshot is detached from later mutation of fetched JSON', async () => {
+                const mutableRates = {
+                    USD: 1,
+                    ILS: 3.4,
+                    GBP: 0.6,
+                    EURO: 0.7
+                };
+
+                await withSandbox({ rates: mutableRates }, async ({ window: sandboxWindow }) => {
+                    await flushAsyncWork();
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+
+                    mutableRates.ILS = 999;
+                    costsDb.addCost({
+                        sum: 34,
+                        currency: 'ILS',
+                        category: 'Snapshot',
+                        description: 'must remain 10 USD'
+                    });
+
+                    const report = costsDb.getReport('USD');
+                    assertApproximately(report.total.sum, 10, 'Retained rates were aliased to mutable input');
+                });
+            });
+
+            await test('Exchange torture', 'Invalid rates payload never becomes usable', async () => {
+                const invalidRates = {
+                    USD: 1,
+                    ILS: 3.4,
+                    GBP: 0.6
+                };
+
+                await withSandbox(
+                    { rates: invalidRates },
+                    async ({ window: sandboxWindow, capturedErrors }) => {
+                        await flushAsyncWork();
+                        const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                        costsDb.addCost({
+                            sum: 34,
+                            currency: 'ILS',
+                            category: 'Bad rates',
+                            description: 'must fail'
+                        });
+
+                        expectThrow(() => costsDb.getReport('USD'), 'Exchange rates have not loaded yet');
+                        assert(capturedErrors.length > 0, 'Startup rate validation failure was not surfaced to console');
+                    }
+                );
+            });
+
+            await test('Exchange torture', 'HTTP failure leaves cross-currency reporting unavailable', async () => {
+                await withSandbox(
+                    { ok: false, statusText: 'Server exploded' },
+                    async ({ window: sandboxWindow, capturedErrors }) => {
+                        await flushAsyncWork();
+                        const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                        costsDb.addCost({
+                            sum: 34,
+                            currency: 'ILS',
+                            category: 'HTTP fail',
+                            description: 'must fail'
+                        });
+
+                        expectThrow(() => costsDb.getReport('USD'), 'Exchange rates have not loaded yet');
+                        assert(capturedErrors.length > 0, 'HTTP startup failure was not surfaced to console');
+                    }
+                );
+            });
+
+            await test('Exchange torture', 'JSON parsing failure leaves cross-currency reporting unavailable', async () => {
+                await withSandbox(
+                    { jsonReject: new Error('bad json') },
+                    async ({ window: sandboxWindow, capturedErrors }) => {
+                        await flushAsyncWork();
+                        const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                        costsDb.addCost({
+                            sum: 34,
+                            currency: 'ILS',
+                            category: 'JSON fail',
+                            description: 'must fail'
+                        });
+
+                        expectThrow(() => costsDb.getReport('USD'), 'Exchange rates have not loaded yet');
+                        assert(capturedErrors.length > 0, 'JSON startup failure was not surfaced to console');
+                    }
+                );
+            });
+        }
+
+        async function runAggregationAttackTests() {
+            await test('Mixed totals', 'Mixed-currency total equals independent expected conversion sum', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    await flushAsyncWork();
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const costs = [
+                        { sum: 50, currency: 'USD', category: 'A', description: 'USD' },
+                        { sum: 34, currency: 'ILS', category: 'B', description: 'ILS' },
+                        { sum: 6, currency: 'GBP', category: 'C', description: 'GBP' },
+                        { sum: 7, currency: 'EURO', category: 'D', description: 'EURO' }
+                    ];
+
+                    costs.forEach((cost) => costsDb.addCost(cost));
+                    const report = costsDb.getReport('USD');
+                    const expectedTotal = costs.reduce((sum, cost) => {
+                        return sum + expectedConversion(cost.sum, cost.currency, 'USD');
+                    }, 0);
+
+                    assertApproximately(report.total.sum, expectedTotal, 'Mixed-currency USD total is wrong');
+                    assertEqual(report.costs.length, costs.length, 'Mixed-currency report lost cost items');
+                });
+            });
+
+            await test('Mixed totals', 'Duplicate costs are preserved as distinct entries', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    const cost = {
+                        sum: 5,
+                        currency: 'USD',
+                        category: 'Duplicate',
+                        description: 'same'
+                    };
+
+                    costsDb.addCost(cost);
+                    costsDb.addCost(cost);
+                    costsDb.addCost(cost);
+
+                    const report = costsDb.getReport('USD');
+                    assertEqual(report.costs.length, 3, 'Duplicate entries were collapsed');
+                    assertEqual(report.total.sum, 15, 'Duplicate entries were not all totaled');
+                });
+            });
+
+            await test('Mixed totals', 'Adding 0 USD does not poison totals or filtering', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 0,
+                        currency: 'USD',
+                        category: 'Zero',
+                        description: 'zero'
+                    });
+                    costsDb.addCost({
+                        sum: 9,
+                        currency: 'USD',
+                        category: 'Nine',
+                        description: 'nine'
+                    });
+
+                    const report = costsDb.getReport('USD');
+                    assertEqual(report.costs.length, 2, 'Zero-valued cost disappeared');
+                    assertEqual(report.total.sum, 9, 'Zero-valued cost corrupted the total');
+                });
+            });
+
+            await test('Mixed totals', 'Negative costs participate in totals exactly as numeric values', async () => {
+                await withSandbox({}, async ({ window: sandboxWindow }) => {
+                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
+                    costsDb.addCost({
+                        sum: 100,
+                        currency: 'USD',
+                        category: 'Positive',
+                        description: '100'
+                    });
+                    costsDb.addCost({
+                        sum: -40,
+                        currency: 'USD',
+                        category: 'Negative',
+                        description: '-40'
+                    });
+
+                    assertEqual(costsDb.getReport('USD').total.sum, 60, 'Negative numeric cost was mishandled');
+                });
+            });
+        }
+
+        function renderResults() {
+            const resultsBody = document.getElementById('results');
+            const summary = document.getElementById('summary');
+            resultsBody.replaceChildren();
+
+            testResults.forEach((result, index) => {
+                const row = document.createElement('tr');
+                const statusClass = result.status === 'PASS' ? 'pass' : 'fail';
+                const details = result.details
+                    ? result.details.split('\n')[0]
+                    : '';
+
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${result.group}</td>
+                    <td>${result.name}</td>
+                    <td class="${statusClass}">${result.status}</td>
+                    <td>${details}</td>
+                `;
+                resultsBody.append(row);
+            });
+
+            const passed = testResults.filter((result) => result.status === 'PASS').length;
+            const failed = testResults.length - passed;
+
+            summary.innerHTML = `
+                <span><strong>Total:</strong> ${testResults.length}</span>
+                <span class="pass"><strong>Passed:</strong> ${passed}</span>
+                <span class="${failed === 0 ? 'pass' : 'fail'}"><strong>Failed:</strong> ${failed}</span>
+            `;
+
+            if (failed === 0) {
+                console.log(`😈 Evil db.js torture test: ${passed}/${testResults.length} PASSED`);
+            } else {
+                console.error(`😈 Evil db.js torture test: ${failed} FAILED out of ${testResults.length}`);
+            }
+        }
+
+        async function loadDbSource() {
+            const response = await originalFetch('../db.js', { cache: 'no-store' });
+
+            if (!response.ok) {
+                throw new Error(`Could not load db.js: ${response.status} ${response.statusText}`);
+            }
+
+            dbSource = await response.text();
+        }
+
+        async function runAllTests() {
+            const runButton = document.getElementById('run-tests');
+            runButton.disabled = true;
+            testResults.length = 0;
+            document.getElementById('summary').textContent = 'Running evil tests…';
+            document.getElementById('results').replaceChildren();
+
+            try {
+                await loadDbSource();
+                await runContractTests();
+                await runAddCostAttackTests();
+                await runDateAndStorageTests();
+                await runReportBoundaryTests();
+                await runExchangeRateTortureTests();
+                await runAggregationAttackTests();
+            } catch (error) {
+                testResults.push({
+                    group: 'Harness',
+                    name: 'Test harness could load and execute db.js',
+                    status: 'FAIL',
+                    details: error && error.stack ? error.stack : String(error)
+                });
+            } finally {
+                renderResults();
+                runButton.disabled = false;
+            }
+        }
+
+        document.getElementById('run-tests').addEventListener('click', runAllTests);
+        void runAllTests();
+    </script>
+</body>
+</html>

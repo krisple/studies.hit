@@ -43,10 +43,10 @@ describe('exchange-rate settings', () => {
         jest.restoreAllMocks();
     });
 
-    test('the configured source falls back to rates.json when no custom URL exists', () => {
+    test('the configured source falls back to the bundled rates when no custom URL exists', () => {
         // No storage entry is necessary for the application's required default behavior.
         expect(getExchangeRatesUrl()).toBe(defaultRatesUrl);
-        expect(defaultRatesUrl).toBe('rates.json');
+        expect(defaultRatesUrl).toBe('rates/default/rates.json');
     });
 
     test('saveExchangeRatesUrl trims and persists a valid custom source', () => {

@@ -2,7 +2,7 @@
   "name": "cost-manager",
   "version": "1.0.0",
   "description": "Cost Manager Application",
-  "main": "db.js",
+  "main": "vanilla/db.js",
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
@@ -12,6 +12,9 @@
   },
   "jest": {
     "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/test-setup.js"
+    ],
     "transform": {}
   },
   "type": "module"
