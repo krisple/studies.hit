@@ -46,11 +46,10 @@ export function readMonthlySelection(periodForm) {
         throw new Error('Select a valid month');
     }
 
-    // Browser strings are resolved before the selection leaves this module.
+    // Browser strings are resolved in focused checks before the selection leaves this module.
     return {
         year: readYear(periodForm),
         month,
-        // Reading currency last keeps each boundary check focused and predictable.
         currency: readCurrency(periodForm)
     };
 }

@@ -1,9 +1,8 @@
 import { convertCurrency } from './exchange.js';
 
-// Stable calendar labels keep annual chart output ordered from January through December.
+// Stable twelve-month labels keep annual chart output ordered from January through December.
 export const monthLabels = [
     'January', 'February', 'March', 'April', 'May', 'June',
-    // The second half completes the fixed twelve-month chart contract.
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
@@ -12,19 +11,17 @@ export function buildDetailedReportView(report, targetCurrency, rates) {
     const rows = report.costs.map((cost) => {
         const convertedSum = convertCurrency(cost.sum, cost.currency, targetCurrency, rates);
 
-        // Original values remain available beside the display-only converted amount.
+        // Rows combine the report-level period with each day and add display-only currency metadata.
         return {
             date: {
                 year: report.year,
                 month: report.month,
-                // The report item supplies only the day under the public DB contract.
                 day: cost.date.day
             },
             category: cost.category,
             description: cost.description,
             originalSum: cost.sum,
             originalCurrency: cost.currency,
-            // The selected currency is display metadata and is never written to storage.
             convertedSum,
             targetCurrency
         };
@@ -62,9 +59,9 @@ export function aggregateCostsByCategory(costs, targetCurrency, rates) {
 export function buildPieChartData(costs, targetCurrency, rates) {
     const categoryTotals = aggregateCostsByCategory(costs, targetCurrency, rates);
 
+    // Numeric totals remain unformatted so Chart.js receives calculation-ready values.
     return {
         labels: categoryTotals.map((categoryTotal) => categoryTotal.category),
-        // Numeric totals remain unformatted so Chart.js receives calculation-ready values.
         values: categoryTotals.map((categoryTotal) => categoryTotal.total)
     };
 }

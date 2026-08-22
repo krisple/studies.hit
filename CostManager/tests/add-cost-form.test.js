@@ -4,20 +4,18 @@ import { buildCostFromForm, initializeAddCostForm } from '../js/add-cost-form.js
 
 // The compact fixture contains only the browser controls owned by the Add Cost module.
 function renderAddCostForm() {
+    // Controls cover every field and supported currency, plus submission and live feedback.
     document.body.innerHTML = [
-        // These controls provide every field consumed by buildCostFromForm.
         '<form id="add-cost-form">',
         '<input name="sum" type="number">',
         '<select name="currency">',
         '<option value="USD">USD</option>',
         '<option value="ILS">ILS</option>',
-        // All remaining supported currencies exercise the same select boundary.
         '<option value="GBP">GBP</option>',
         '<option value="EURO">EURO</option>',
         '</select>',
         '<input name="category" type="text">',
         '<textarea name="description"></textarea>',
-        // Submission and live feedback complete the module-owned fixture.
         '<button type="submit">Add Cost</button>',
         '</form>',
         '<p id="add-cost-status"></p>'
@@ -45,11 +43,10 @@ describe('Add Cost form', () => {
         costForm.elements.category.value = '  Food  ';
         costForm.elements.description.value = '  Fresh vegetables  ';
 
-        // Numeric conversion occurs once at the UI boundary and text is normalized.
+        // Numeric conversion and normalized text complete the exact addCost input shape.
         expect(buildCostFromForm(costForm)).toEqual({
             sum: 27.5,
             currency: 'ILS',
-            // Normalized text fields complete the exact addCost input shape.
             category: 'Food',
             description: 'Fresh vegetables'
         });
@@ -72,17 +69,17 @@ describe('Add Cost form', () => {
         // Integration with the actual database verifies the stored Phase 3 values and date.
         const storedCosts = JSON.parse(localStorage.getItem('costsdb_ui-test'));
         expect(storedCosts).toHaveLength(1);
+        // Text values must survive the UI-to-storage integration unchanged.
         expect(storedCosts[0]).toMatchObject({
             sum: 84.25,
             currency: 'GBP',
-            // Text values must survive the UI-to-storage integration unchanged.
             category: 'Education',
             description: 'Course book'
         });
+        // The database, rather than the form, owns all date components.
         expect(storedCosts[0].date).toEqual({
             day: expect.any(Number),
             month: expect.any(Number),
-            // The database, rather than the form, owns all date components.
             year: expect.any(Number)
         });
 

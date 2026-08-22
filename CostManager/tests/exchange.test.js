@@ -59,10 +59,10 @@ describe('exchange.js logic', () => {
 
     // Omitting the source selects the local default without storing that choice in the module.
     test('fetchExchangeRates uses the default URL when no URL is provided', async () => {
+        // Include the complete server contract so validation succeeds after fetch.
         const ratePayload = {
             USD: 1,
             ILS: 3.4,
-            // Include the complete server contract so validation succeeds after fetch.
             GBP: 0.6,
             EURO: 0.7
         };
@@ -82,10 +82,10 @@ describe('exchange.js logic', () => {
     // A custom source must affect only this fetch call and must not become module state.
     test('fetchExchangeRates uses a custom URL when provided', async () => {
         const customUrl = 'https://example.com/rates.json';
+        // Custom and default sources share the same required payload structure.
         const ratePayload = {
             USD: 1,
             ILS: 3.4,
-            // Custom and default sources share the same required payload structure.
             GBP: 0.6,
             EURO: 0.7
         };

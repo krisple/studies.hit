@@ -42,10 +42,10 @@ function getCostsFromStorage(databaseName) {
             }
 
             // Stored dates include the full period even though reports expose only the day.
+            // Broad day bounds reject corrupted storage before period filtering.
             if (!storedCost.date || typeof storedCost.date.year !== 'number' || !Number.isInteger(storedCost.date.year) ||
                 typeof storedCost.date.month !== 'number' || !Number.isInteger(storedCost.date.month) ||
                 storedCost.date.month < 1 || storedCost.date.month > 12 ||
-                // Broad day bounds reject corrupted storage before period filtering.
                 typeof storedCost.date.day !== 'number' || !Number.isInteger(storedCost.date.day) ||
                 storedCost.date.day < 1 || storedCost.date.day > 31) {
                 throw new Error('Stored item is missing a valid date structure');
@@ -95,17 +95,15 @@ function validateCostInput(cost) {
 function buildStoredCost(cost) {
     const today = new Date();
 
-    // Caller-owned fields are copied before the storage-only date is attached.
+    // Copy caller fields before attaching the full insertion date with public 1–12 month numbering.
     return {
         sum: cost.sum,
         currency: cost.currency,
         category: cost.category,
         description: cost.description,
-        // Months are stored as 1–12 to match the report API rather than Date's 0–11 indexing.
         date: {
             day: today.getDate(),
             month: today.getMonth() + 1,
-            // The full year completes the period required for report filtering.
             year: today.getFullYear()
         }
     };
@@ -113,10 +111,10 @@ function buildStoredCost(cost) {
 
 // addCost deliberately omits the application-managed date from its return contract.
 function extractPublicAddedCost(storedCost) {
+    // Preserve the caller's text exactly; storage enrichment must not rewrite public fields.
     return {
         sum: storedCost.sum,
         currency: storedCost.currency,
-        // Preserve the caller's text exactly; storage enrichment must not rewrite public fields.
         category: storedCost.category,
         description: storedCost.description
     };
@@ -150,14 +148,13 @@ function filterCostsByPeriod(costs, targetYear, targetMonth) {
 
 // Reports preserve original sums and currencies but expose only the required date.day field.
 function mapToReportCost(storedCost) {
+    // Preserve text while omitting the report-level month and year from each public item.
     return {
         sum: storedCost.sum,
         currency: storedCost.currency,
-        // Text fields remain unchanged when mapped into the public report shape.
         category: storedCost.category,
         description: storedCost.description,
         date: {
-            // Month and year belong at report level, so they are omitted from each public item.
             day: storedCost.date.day
         }
     };
@@ -205,11 +202,11 @@ function openCostsDB(databaseName, databaseVersion) {
         const convertedTotal = calculateConvertedTotal(periodCosts, currency);
 
         // Resolved period metadata and converted total share one report response.
+        // Only the total is converted; each report cost retains its stored amount and currency.
         return {
             year: targetYear,
             month: targetMonth,
             costs: reportCosts,
-            // Only the total is converted; each report cost retains its stored amount and currency.
             total: {
                 currency,
                 sum: convertedTotal
@@ -224,8 +221,8 @@ function openCostsDB(databaseName, databaseVersion) {
     };
 }
 
+// The factory is the module's only public entry point.
 const db = {
-    // The factory is the module's only public entry point.
     openCostsDB
 };
 

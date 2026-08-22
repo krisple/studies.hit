@@ -24,16 +24,15 @@ function getRequiredElement(elementId) {
 
 // Report element collection keeps the panel initializer independent from document queries.
 function getDetailedReportElements() {
+    // Group the shared dialog dependencies with the mutable report output nodes.
     return {
         form: getRequiredElement('detailed-report-form'),
         statusElement: getRequiredElement('detailed-report-status'),
         emptyElement: getRequiredElement('detailed-report-empty'),
         outputElement: getRequiredElement('detailed-report-output'),
-        // One shared dialog serves every expandable description in the report table.
         dialogElement: getRequiredElement('description-dialog'),
         dialogTextElement: getRequiredElement('description-dialog-text'),
         dialogCloseButton: getRequiredElement('description-dialog-close'),
-        // Table content and total are the only mutable nodes inside report output.
         tableBody: getRequiredElement('detailed-report-body'),
         totalElement: getRequiredElement('detailed-report-total')
     };
@@ -41,11 +40,11 @@ function getDetailedReportElements() {
 
 // Both charts expose the same UI dependency shape while keeping separate DOM nodes.
 function getChartElements(chartName) {
+    // Canvas lookup remains explicit so each renderer can own exactly one chart.
     return {
         form: getRequiredElement(`${chartName}-chart-form`),
         statusElement: getRequiredElement(`${chartName}-chart-status`),
         canvasContainer: getRequiredElement(`${chartName}-chart-container`),
-        // Canvas lookup remains explicit so each renderer can own exactly one chart.
         canvas: getRequiredElement(`${chartName}-chart-canvas`)
     };
 }

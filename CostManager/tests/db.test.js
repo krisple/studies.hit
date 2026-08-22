@@ -238,12 +238,11 @@ describe('db.module.js logic', () => {
         const costsDb = db.openCostsDB('testdb', 1);
         costsDb.addCost({ sum: 100, currency: 'USD', category: 'TEST', description: 'test1' });
 
-        // Add one historical record directly to isolate report-period filtering.
+        // Add one fixed historical record to separate it from the current cost during filtering.
         const pastCost = {
             sum: 50,
             currency: 'USD',
             category: 'PAST',
-            // A fixed historical date separates this record from the cost added above.
             description: 'past1',
             date: { day: 1, month: 5, year: 2020 }
         };

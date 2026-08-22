@@ -10,14 +10,13 @@ async function waitForSettingsUpdate() {
 
 // Settings tests use the same named input and feedback elements as index.html.
 function renderSettingsForm() {
+    // The complete fixture covers the form, reset action, and accessible feedback outputs.
     document.body.innerHTML = [
         '<section class="settings-panel">',
-        // The form exposes the same named URL boundary used by the production handler.
         '<form id="settings-form">',
         '<input name="ratesUrl" type="url">',
         '<button type="submit">Save Settings</button>',
         '</form>',
-        // Separate elements expose reset behavior and both accessible feedback outputs.
         '<button id="use-default-rates" type="button">Use Default</button>',
         '<p id="settings-status"></p>',
         '<strong id="current-rates-source"></strong>',
@@ -25,11 +24,10 @@ function renderSettingsForm() {
         '<button id="outside-settings" type="button">Outside</button>'
     ].join('');
 
-    // Returning all settings-owned nodes keeps handler dependencies explicit.
+    // Return all settings-owned feedback, source, and control dependencies together.
     return {
         settingsForm: document.getElementById('settings-form'),
         defaultButton: document.getElementById('use-default-rates'),
-        // Feedback and source nodes complete the dependencies used by both handlers.
         statusElement: document.getElementById('settings-status'),
         sourceElement: document.getElementById('current-rates-source'),
         outsideButton: document.getElementById('outside-settings')
@@ -152,8 +150,8 @@ describe('exchange-rate settings', () => {
     test('an invalid form URL does not replace the active source', () => {
         const settingsElements = renderSettingsForm();
         const rateManager = { setRatesUrl: jest.fn() };
+        // The same fixture verifies that validation errors leave active state untouched.
         initializeSettingsForm(
-            // The same fixture verifies that validation errors leave active state untouched.
             settingsElements.settingsForm,
             settingsElements.defaultButton,
             settingsElements.statusElement,

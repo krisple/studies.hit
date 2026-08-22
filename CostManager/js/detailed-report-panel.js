@@ -121,11 +121,11 @@ function initializeDescriptionDialog(reportElements) {
 // Each view row shows both immutable stored values and its display-only conversion.
 function createReportRow(reportRow, showFullDescription) {
     const tableRow = document.createElement('tr');
+    // Original and converted columns make the non-mutating conversion explicit to users.
     tableRow.append(
         createReportCell(formatReportDate(reportRow.date)),
         createDescriptionCell(reportRow.description, showFullDescription),
         createReportCell(reportRow.category),
-        // Original and converted columns make the non-mutating conversion explicit to users.
         createReportCell(`${formatAmount(reportRow.originalSum)} ${reportRow.originalCurrency}`),
         createReportCell(`${formatAmount(reportRow.convertedSum)} ${reportRow.targetCurrency}`)
     );

@@ -1,6 +1,6 @@
+// Extra colors prevent category reuse for the common multi-category case.
 const chartColors = [
     '#195f43', '#d6ef7f', '#e7a94d', '#4d7ea8', '#8f6bb3', '#d66a5e',
-    // Extra colors prevent category reuse for the common multi-category case.
     '#5b9b78', '#c982a6', '#7a8b52', '#5d6f87', '#bd7b4d', '#7c6f64'
 ];
 
@@ -54,13 +54,13 @@ function createPieConfiguration(chartData, currency) {
         ? chartData.labels.map((label, index) => chartColors[index % chartColors.length])
         : ['#dce3da'];
 
-    // Both populated and neutral states use one standard Chart.js pie configuration.
+    // Metadata and tooltips identify the currency, while the default legend identifies categories.
+    // Responsive sizing serves populated and neutral states in the fixed-height container.
     return {
         type: 'pie',
         data: {
             labels: pieLabels,
             datasets: [{
-                // Dataset metadata tells the legend which selected currency it represents.
                 label: `Costs in ${currency}`,
                 data: pieValues,
                 backgroundColor: pieColors,
@@ -68,7 +68,6 @@ function createPieConfiguration(chartData, currency) {
                 borderWidth: 2
             }]
         },
-        // Responsive sizing follows the dedicated fixed-height container in the UI.
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -76,7 +75,6 @@ function createPieConfiguration(chartData, currency) {
                 legend: {
                     display: hasCosts
                 },
-                // Tooltip formatting adds the selected currency at the presentation boundary.
                 tooltip: {
                     enabled: hasCosts,
                     callbacks: {
@@ -84,44 +82,40 @@ function createPieConfiguration(chartData, currency) {
                     }
                 }
             }
-            // Default legend behavior already communicates each category label clearly.
         }
     };
 }
 
 // Bar configuration always consumes the ordered twelve-month transformation.
 function createBarConfiguration(chartData, currency) {
+    // Ordered values and a zero baseline keep January-to-December totals comparable.
+    // Responsive sizing preserves raw data while tooltips and the default legend add context.
     return {
         type: 'bar',
         data: {
             labels: chartData.labels,
             datasets: [{
                 label: `Monthly costs in ${currency}`,
-                // Values arrive in January-to-December order from the annual transformation.
                 data: chartData.values,
                 backgroundColor: '#195f43',
                 borderRadius: 6
             }]
         },
-        // Responsive sizing follows the dedicated fixed-height container in the UI.
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                // A zero baseline keeps monthly totals visually comparable.
                 y: {
                     beginAtZero: true
                 }
             },
             plugins: {
-                // Tooltip formatting adds the selected currency without rounding the dataset.
                 tooltip: {
                     callbacks: {
                         label: (context) => formatTooltipAmount(context, currency)
                     }
                 }
             }
-            // Default legend behavior already communicates the annual dataset clearly.
         }
     };
 }

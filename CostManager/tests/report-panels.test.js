@@ -11,18 +11,16 @@ const secondRates = { USD: 1, ILS: 5, GBP: 0.6, EURO: 0.9 };
 function createMonthlyForm(formId) {
     const form = document.createElement('form');
     form.id = formId;
+    // The complete monthly selection fixture includes all months and a real submit control.
     form.innerHTML = [
-        // All months allow initialization to select the real current month in every test run.
         '<select name="month">',
         '<option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>',
         '<option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>',
         '<option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>',
         '<option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>',
         '</select>',
-        // Year and currency complete the same named selection boundary as the production forms.
         '<input name="year" type="number">',
         '<select name="currency"><option value="USD">USD</option><option value="ILS">ILS</option></select>',
-        // A real submit control supports the Detailed Report form submission fixture.
         '<button type="submit">Submit</button>'
     ].join('');
     document.body.append(form);
@@ -65,25 +63,22 @@ describe('report and chart operations', () => {
     // Repeated submissions prove the panel stays synchronous and never owns rate fetching.
     test('detailed report changes rates only when the user generates it again', async () => {
         const form = createMonthlyForm('detailed-report-form');
-        // The panel receives explicit DOM dependencies, matching the application wiring contract.
+        // Explicit dependencies mirror the application output, dialog, row, and total nodes.
         const reportElements = {
             form,
             statusElement: document.createElement('p'),
             emptyElement: document.createElement('div'),
-            // The output host and dialog mirror the nodes passed by application orchestration.
             outputElement: document.createElement('div'),
             ...createDescriptionDialogElements(),
             tableBody: document.createElement('tbody'),
-            // The total is updated independently from the row collection.
             totalElement: document.createElement('strong')
         };
-        // The DB mock exposes only the clarified synchronous report contract.
+        // The synchronous DB mock calculates totals from the current shared rate source.
         const costsDb = {
             getReport: jest.fn((currency, year, month) => ({
                 year,
                 month,
                 costs: [{ sum: 40, currency: 'ILS', category: 'Food', description: 'Lunch', date: { day: 8 } }],
-                // The mock mirrors DB totals by reading the current shared source internally.
                 total: { currency, sum: 40 / exchangeRateManager.getRates().ILS }
             }))
         };
@@ -127,11 +122,11 @@ describe('report and chart operations', () => {
     // A guarded refresh must remain inert until the user creates the first report.
     test('an explicit rates change does not create a report before one is displayed', () => {
         const form = createMonthlyForm('detailed-report-form');
+        // The guarded refresh uses the same complete dependency shape as production.
         const reportElements = {
             form,
             statusElement: document.createElement('p'),
             emptyElement: document.createElement('div'),
-            // The guarded refresh uses the same complete dependency shape as production.
             outputElement: document.createElement('div'),
             ...createDescriptionDialogElements(),
             tableBody: document.createElement('tbody'),
@@ -149,25 +144,24 @@ describe('report and chart operations', () => {
     // Description disclosure is a report-only presentation behavior with no DB shape changes.
     test('long report descriptions open from a bounded and clearly labeled preview', () => {
         const form = createMonthlyForm('detailed-report-form');
-        // Explicit element injection keeps the panel independent from document queries.
+        // Explicit dependencies include the row and total nodes used by production rendering.
         const reportElements = {
             form,
             statusElement: document.createElement('p'),
             emptyElement: document.createElement('div'),
             outputElement: document.createElement('div'),
             ...createDescriptionDialogElements(),
-            // Row and total nodes receive the same rendered content as the production table.
             tableBody: document.createElement('tbody'),
             totalElement: document.createElement('strong')
         };
         // Repetition creates text well beyond the chosen eighty-character preview boundary.
         const longDescription = 'A deliberately long cost description '.repeat(5).trim();
+        // Identity currency keeps this test focused entirely on report presentation.
         const costsDb = {
             getReport: jest.fn((currency, year, month) => ({
                 year,
                 month,
                 costs: [{ sum: 12, currency, category: 'Food', description: longDescription, date: { day: 9 } }],
-                // Identity currency keeps this test focused entirely on report presentation.
                 total: { currency, sum: 12 }
             }))
         };
@@ -194,8 +188,8 @@ describe('report and chart operations', () => {
         // Renderer injection isolates orchestration and aggregation from canvas behavior.
         const chartElements = createChartElements('pie-chart-form');
         const chartRenderer = { render: jest.fn(), clear: jest.fn() };
+        // Two matching categories must collapse into one converted slice.
         const costsDb = {
-            // Two matching categories must collapse into one converted slice.
             getReport: jest.fn(() => ({
                 costs: [
                     { sum: 40, currency: 'ILS', category: 'Food' },
@@ -251,8 +245,8 @@ describe('report and chart operations', () => {
         const chartElements = createChartElements('bar-chart-form');
         chartElements.form.elements.namedItem('month').remove();
         const chartRenderer = { render: jest.fn(), clear: jest.fn() };
+        // Month-number totals make ordering across all twelve calls directly observable.
         const costsDb = {
-            // Month-number totals make ordering across all twelve calls directly observable.
             getReport: jest.fn((currency, year, month) => ({
                 total: { currency, sum: month }
             }))
@@ -285,8 +279,8 @@ describe('report and chart operations', () => {
         const chartElements = createChartElements('bar-chart-form');
         chartElements.form.elements.namedItem('month').remove();
         const chartRenderer = { render: jest.fn(), clear: jest.fn() };
+        // Stable empty totals isolate refresh eligibility from annual calculations.
         const costsDb = {
-            // Stable empty totals isolate refresh eligibility from annual calculations.
             getReport: jest.fn((currency) => ({ total: { currency, sum: 0 } }))
         };
         const barChartPanel = initializeBarChartPanel(chartElements, costsDb, chartRenderer);
