@@ -3,7 +3,11 @@ package il.ac.hit.validation;
 /**
  * Factory class responsible for creating specific instances of User subclasses.
  */
-public class UserFactory {
+public final class UserFactory {
+
+    private UserFactory() {
+        // Prevent instantiation of utility class.
+    }
 
     /*
     * This class implements the Factory Method pattern required by the project.

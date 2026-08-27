@@ -6,7 +6,11 @@ import java.util.Comparator;
 /**
  * Utility class providing common operations on User arrays.
  */
-public class UserUtils {
+public final class UserUtils {
+
+    private UserUtils() {
+        // Prevent instantiation of utility class.
+    }
 
     /*
      * The sort operation follows the Template Method approach required by the project.
