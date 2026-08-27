@@ -14,6 +14,7 @@ class UserUtilsTest {
 
         User[] users = {userAlice, userBob, userCharlie};
 
+        // Sort the users using the supplied age comparator.
         UserUtils.sort(users, Comparator.comparingInt(User::getAge));
 
         assertEquals(userBob, users[0]);
@@ -29,6 +30,7 @@ class UserUtilsTest {
 
         User[] users = {userCharlie, userAlice, userBob};
 
+        // Sort the users using the supplied username comparator.
         UserUtils.sort(users, Comparator.comparing(User::getUsername));
 
         assertEquals(userAlice, users[0]);

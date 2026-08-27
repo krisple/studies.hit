@@ -9,6 +9,7 @@ class ComplexValidationFlowTest {
     void testHighlyComplexValidUserFlow() {
         User user = new User("administrator", "super_admin_very_long@department.co.il", "Admin123$secure!", 120);
 
+        // Build the validation groups used by the complete user validation.
         UserValidation emailValidation = UserValidation.emailEndsWithIL().and(UserValidation.emailLengthBiggerThan10());
         
         UserValidation passwordValidation = UserValidation.all(
@@ -25,6 +26,7 @@ class ComplexValidationFlowTest {
                 UserValidation.ageBiggerThan18()
         );
 
+        // Evaluate the fully combined validation against the user.
         ValidationResult result = userValidation.apply(user);
         assertTrue(result.isValid(), "User should be perfectly valid in this highly complex scenario");
     }
@@ -69,6 +71,7 @@ class ComplexValidationFlowTest {
         String longString = "a".repeat(1000);
         User user = new User(longString, longString + "@b.co.il", longString + "123$", Integer.MAX_VALUE);
 
+        // Apply the validation rules to extreme but supported input values.
         UserValidation validation = UserValidation.all(
                 UserValidation.usernameLengthBiggerThan8(),
                 UserValidation.emailLengthBiggerThan10(),

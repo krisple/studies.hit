@@ -159,16 +159,19 @@ class UserValidationTest {
 
     @Test
     void testNullFieldsReturnInvalid() {
+        // Null email cases
         User userWithNullEmail = new User("user", null, "password", 20);
         assertFalse(UserValidation.emailEndsWithIL().apply(userWithNullEmail).isValid());
         assertFalse(UserValidation.emailLengthBiggerThan10().apply(userWithNullEmail).isValid());
 
+        // Null password cases
         User userWithNullPassword = new User("user", "test@test.co.il", null, 20);
         assertFalse(UserValidation.passwordLengthBiggerThan8().apply(userWithNullPassword).isValid());
         assertFalse(UserValidation.passwordIncludesLettersNumbersOnly().apply(userWithNullPassword).isValid());
         assertFalse(UserValidation.passwordIncludesDollarSign().apply(userWithNullPassword).isValid());
         assertFalse(UserValidation.passwordIsDifferentFromUsername().apply(userWithNullPassword).isValid());
 
+        // Null username cases
         User userWithNullUsername = new User(null, "test@test.co.il", "password", 20);
         assertFalse(UserValidation.usernameLengthBiggerThan8().apply(userWithNullUsername).isValid());
         assertFalse(UserValidation.passwordIsDifferentFromUsername().apply(userWithNullUsername).isValid());
