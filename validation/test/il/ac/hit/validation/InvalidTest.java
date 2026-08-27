@@ -14,6 +14,7 @@ class InvalidTest {
         String expectedReason = "Invalid username";
         ValidationResult result = new Invalid(expectedReason);
         
+        // Verify the observable contract of a failed validation result.
         assertFalse(result.isValid(), "Invalid should always return false for isValid()");
         assertTrue(result.getReason().isPresent(), "Invalid should always have a reason present");
         assertEquals(expectedReason, result.getReason().get(), "Reason should match the expected string");

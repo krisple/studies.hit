@@ -14,6 +14,7 @@ class UserTest {
         assertEquals(25, user.getAge());
     }
 
+    // Verify that null values remain available for external validation.
     @Test
     void testNullUsernameAllowed() {
         User user = new User(null, "admin@hit.ac.il", "pass123", 25);
@@ -82,6 +83,7 @@ class UserTest {
         assertNull(user.getPassword());
     }
 
+    // Verify that age constraints remain the responsibility of UserValidation.
     @Test
     void testNegativeAgeInConstructor() {
         User user = new User("admin", "admin@hit.ac.il", "pass123", -5);

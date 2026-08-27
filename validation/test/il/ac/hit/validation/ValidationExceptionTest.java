@@ -10,6 +10,7 @@ class ValidationExceptionTest {
         String message = "Validation failed";
         ValidationException exception = new ValidationException(message);
         
+        // Verify that the message-only constructor preserves its contract.
         assertEquals(message, exception.getMessage());
         assertNull(exception.getCause());
     }
@@ -20,6 +21,7 @@ class ValidationExceptionTest {
         Throwable cause = new RuntimeException("Underlying issue");
         ValidationException exception = new ValidationException(message, cause);
         
+        // Verify that both the message and original cause are preserved.
         assertEquals(message, exception.getMessage());
         assertEquals(cause, exception.getCause());
     }
@@ -30,6 +32,7 @@ class ValidationExceptionTest {
         ValidationException exception = new ValidationException(message);
         String result = exception.toString();
         
+        // Verify that the diagnostic representation exposes the exception information.
         assertTrue(result.contains(message));
         assertTrue(result.contains("ValidationException"));
     }

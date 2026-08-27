@@ -8,6 +8,7 @@ class PlatinumUserTest {
     @Test
     void testPlatinumUserCreation() {
         PlatinumUser user = new PlatinumUser("platinum", "platinum@example.com", "pass123", 20);
+        // Verify that the inherited User state is initialized correctly.
         assertEquals("platinum", user.getUsername());
         assertEquals("platinum@example.com", user.getEmail());
         assertEquals("pass123", user.getPassword());
@@ -18,6 +19,7 @@ class PlatinumUserTest {
     void testPlatinumUserToString() {
         PlatinumUser user = new PlatinumUser("platinum", "platinum@example.com", "pass123", 20);
         String result = user.toString();
+        // Verify that the representation identifies the concrete user type.
         assertTrue(result.contains("PlatinumUser"));
         assertTrue(result.contains("platinum"));
     }

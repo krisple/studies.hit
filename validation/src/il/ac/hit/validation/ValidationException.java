@@ -12,7 +12,8 @@ public class ValidationException extends RuntimeException {
      * @param message describes the specific reason for the validation failure
      */
     public ValidationException(String message) {
-        super(message);
+        // Delegate to the primary constructor to keep initialization centralized.
+        this(message, null);
     }
 
     /**

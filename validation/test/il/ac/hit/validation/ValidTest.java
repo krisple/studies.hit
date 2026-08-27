@@ -11,6 +11,7 @@ class ValidTest {
     @Test
     void testValidResultProperties() {
         ValidationResult result = new Valid();
+        // Verify the observable contract of a successful validation result.
         assertTrue(result.isValid(), "Valid should always return true for isValid()");
         assertNotNull(result.getReason(), "Reason optional should not be null");
         assertFalse(result.getReason().isPresent(), "Valid should not have a reason present");

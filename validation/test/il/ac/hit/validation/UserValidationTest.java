@@ -278,6 +278,7 @@ class UserValidationTest {
         
         assertFalse(result.isValid());
         assertTrue(isSecondValidationExecuted[0]);
+        assertEquals("XOR failed because both validations succeeded", result.getReason().get());
     }
     
     @Test
@@ -308,6 +309,7 @@ class UserValidationTest {
         
         assertFalse(result.isValid());
         assertFalse(isThirdValidationExecuted[0]);
+        assertEquals("Second failed", result.getReason().get());
     }
     
     @Test
@@ -340,6 +342,7 @@ class UserValidationTest {
         
         assertFalse(result.isValid());
         assertFalse(isThirdValidationExecuted[0]);
+        assertEquals("NONE failed because a validation succeeded", result.getReason().get());
     }
     
     @Test
