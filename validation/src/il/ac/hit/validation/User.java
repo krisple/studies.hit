@@ -3,6 +3,7 @@ package il.ac.hit.validation;
 /**
  * Represents an entity that is subject to validation rules.
  * Encapsulates core identification properties that the validation library evaluates.
+ * This class contains no validation logic; validity checks are performed using {@link UserValidation}.
  */
 public class User {
 

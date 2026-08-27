@@ -11,7 +11,6 @@ public class Valid implements ValidationResult {
      * Constructs a new successful validation result.
      */
     public Valid() {
-        // Empty constructor for instantiation
     }
 
     /**

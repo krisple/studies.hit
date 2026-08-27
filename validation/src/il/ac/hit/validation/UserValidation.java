@@ -103,6 +103,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
 
     /**
      * Validates that the user's password contains only letters and numbers.
+     * This rule allows only letters, only numbers, a combination of them, and also an empty string; length check is a separate rule.
      *
      * @return a UserValidation instance for this rule
      */

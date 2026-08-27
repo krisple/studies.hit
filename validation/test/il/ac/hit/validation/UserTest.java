@@ -79,4 +79,17 @@ class UserTest {
         user.setPassword(null);
         assertNull(user.getPassword());
     }
+
+    @Test
+    void testNegativeAgeInConstructor() {
+        User user = new User("admin", "admin@hit.ac.il", "pass123", -5);
+        assertEquals(-5, user.getAge());
+    }
+
+    @Test
+    void testSetNegativeAge() {
+        User user = new User("admin", "admin@hit.ac.il", "pass123", 25);
+        user.setAge(-10);
+        assertEquals(-10, user.getAge());
+    }
 }

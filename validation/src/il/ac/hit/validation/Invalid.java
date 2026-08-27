@@ -19,13 +19,6 @@ public class Invalid implements ValidationResult {
         setReason(reason);
     }
 
-    private void setReason(String reason) {
-        if (reason == null || reason.trim().isEmpty()) {
-            throw new ValidationException("Invalid reason cannot be null or empty.");
-        }
-        this.reason = reason;
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -50,5 +43,12 @@ public class Invalid implements ValidationResult {
     @Override
     public String toString() {
         return "Invalid{reason='" + reason + "'}";
+    }
+
+    private void setReason(String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new ValidationException("Invalid reason cannot be null or empty.");
+        }
+        this.reason = reason;
     }
 }
