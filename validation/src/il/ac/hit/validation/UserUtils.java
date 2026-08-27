@@ -8,11 +8,11 @@ import java.util.Comparator;
  */
 public class UserUtils {
 
-/*
- * The sort operation follows the Template Method approach required by the project.
- * Arrays.sort provides the fixed sorting workflow, while the supplied Comparator
- * provides the variable comparison behavior.
- */
+    /*
+     * The sort operation follows the Template Method approach required by the project.
+     * Arrays.sort provides the fixed sorting workflow, while the supplied Comparator
+     * provides the variable comparison behavior.
+     */
 
     /**
      * Sorts an array of users using the provided comparator.

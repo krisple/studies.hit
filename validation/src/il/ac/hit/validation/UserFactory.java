@@ -5,11 +5,11 @@ package il.ac.hit.validation;
  */
 public class UserFactory {
 
-/*
- * This class implements the Factory Method pattern required by the project.
- * The requested user type selects the concrete User subclass while callers
- * receive the common User abstraction.
- */
+    /*
+    * This class implements the Factory Method pattern required by the project.
+    * The requested user type selects the concrete User subclass while callers
+    * receive the common User abstraction.
+    */
 
     private static final String TYPE_BASIC = "basic";
     private static final String TYPE_PREMIUM = "premium";
