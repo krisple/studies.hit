@@ -72,7 +72,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      */
     public static UserValidation emailEndsWithIL() {
         return createValidation(
-                user -> user.getEmail().endsWith(REQUIRED_EMAIL_SUFFIX),
+                user -> user.getEmail() != null && user.getEmail().endsWith(REQUIRED_EMAIL_SUFFIX),
                 "Email must end with '" + REQUIRED_EMAIL_SUFFIX + "'."
         );
     }
@@ -84,7 +84,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      */
     public static UserValidation emailLengthBiggerThan10() {
         return createValidation(
-                user -> user.getEmail().length() > EMAIL_LENGTH_THRESHOLD,
+                user -> user.getEmail() != null && user.getEmail().length() > EMAIL_LENGTH_THRESHOLD,
                 "Email length must be strictly greater than " + EMAIL_LENGTH_THRESHOLD + " characters."
         );
     }
@@ -96,20 +96,20 @@ public interface UserValidation extends Function<User, ValidationResult> {
      */
     public static UserValidation passwordLengthBiggerThan8() {
         return createValidation(
-                user -> user.getPassword().length() > PASSWORD_LENGTH_THRESHOLD,
+                user -> user.getPassword() != null && user.getPassword().length() > PASSWORD_LENGTH_THRESHOLD,
                 "Password length must be strictly greater than " + PASSWORD_LENGTH_THRESHOLD + " characters."
         );
     }
 
     /**
-     * Validates that the user's password contains only letters and numbers and is not empty.
+     * Validates that the user's password contains only letters and numbers.
      *
      * @return a UserValidation instance for this rule
      */
     public static UserValidation passwordIncludesLettersNumbersOnly() {
         return createValidation(
-                user -> user.getPassword().matches("^[a-zA-Z0-9]+$"),
-                "Password must not be empty and must include only letters and numbers."
+                user -> user.getPassword() != null && user.getPassword().matches("^[a-zA-Z0-9]*$"),
+                "Password must contain letters and/or numbers only."
         );
     }
 
@@ -120,7 +120,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      */
     public static UserValidation passwordIncludesDollarSign() {
         return createValidation(
-                user -> user.getPassword().contains(REQUIRED_PASSWORD_SYMBOL),
+                user -> user.getPassword() != null && user.getPassword().contains(REQUIRED_PASSWORD_SYMBOL),
                 "Password must include a '" + REQUIRED_PASSWORD_SYMBOL + "' sign."
         );
     }
@@ -132,7 +132,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      */
     public static UserValidation passwordIsDifferentFromUsername() {
         return createValidation(
-                user -> !user.getPassword().equals(user.getUsername()),
+                user -> user.getUsername() != null && user.getPassword() != null && !user.getPassword().equals(user.getUsername()),
                 "Password must be different from the username."
         );
     }
@@ -156,7 +156,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      */
     public static UserValidation usernameLengthBiggerThan8() {
         return createValidation(
-                user -> user.getUsername().length() > USERNAME_LENGTH_THRESHOLD,
+                user -> user.getUsername() != null && user.getUsername().length() > USERNAME_LENGTH_THRESHOLD,
                 "Username length must be strictly greater than " + USERNAME_LENGTH_THRESHOLD + " characters."
         );
     }
@@ -171,6 +171,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
     public default UserValidation and(UserValidation other) {
         requireNotNull(other, "The validation to combine cannot be null.");
         return user -> {
+            requireNotNull(user, "The user cannot be null.");
             ValidationResult firstResult = this.apply(user);
             if (!firstResult.isValid()) {
                 return firstResult;
@@ -189,6 +190,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
     public default UserValidation or(UserValidation other) {
         requireNotNull(other, "The validation to combine cannot be null.");
         return user -> {
+            requireNotNull(user, "The user cannot be null.");
             ValidationResult firstResult = this.apply(user);
             if (firstResult.isValid()) {
                 return new Valid();
@@ -211,6 +213,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
     public default UserValidation xor(UserValidation other) {
         requireNotNull(other, "The validation to combine cannot be null.");
         return user -> {
+            requireNotNull(user, "The user cannot be null.");
             ValidationResult firstResult = this.apply(user);
             ValidationResult secondResult = other.apply(user);
 
@@ -237,6 +240,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
     public static UserValidation all(UserValidation... validations) {
         requireValidationsNotNull(validations);
         return user -> {
+            requireNotNull(user, "The user cannot be null.");
             for (UserValidation validation : validations) {
                 ValidationResult result = validation.apply(user);
                 if (!result.isValid()) {
@@ -257,6 +261,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
     public static UserValidation none(UserValidation... validations) {
         requireValidationsNotNull(validations);
         return user -> {
+            requireNotNull(user, "The user cannot be null.");
             for (UserValidation validation : validations) {
                 ValidationResult result = validation.apply(user);
                 if (result.isValid()) {

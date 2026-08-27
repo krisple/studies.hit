@@ -15,25 +15,21 @@ class UserTest {
     }
 
     @Test
-    void testNullUsernameThrowsException() {
-        ValidationException exception = assertThrows(ValidationException.class, () -> {
-            new User(null, "admin@hit.ac.il", "pass123", 25);
-        });
-        assertNotNull(exception.getMessage());
+    void testNullUsernameAllowed() {
+        User user = new User(null, "admin@hit.ac.il", "pass123", 25);
+        assertNull(user.getUsername());
     }
 
     @Test
-    void testNullEmailThrowsException() {
-        assertThrows(ValidationException.class, () -> {
-            new User("admin", null, "pass123", 25);
-        });
+    void testNullEmailAllowed() {
+        User user = new User("admin", null, "pass123", 25);
+        assertNull(user.getEmail());
     }
 
     @Test
-    void testNullPasswordThrowsException() {
-        assertThrows(ValidationException.class, () -> {
-            new User("admin", "admin@hit.ac.il", null, 25);
-        });
+    void testNullPasswordAllowed() {
+        User user = new User("admin", "admin@hit.ac.il", null, 25);
+        assertNull(user.getPassword());
     }
 
     @Test
@@ -64,20 +60,23 @@ class UserTest {
     }
 
     @Test
-    void testSetNullUsernameThrowsException() {
+    void testSetNullUsernameAllowed() {
         User user = new User("admin", "admin@hit.ac.il", "pass123", 25);
-        assertThrows(ValidationException.class, () -> user.setUsername(null));
+        user.setUsername(null);
+        assertNull(user.getUsername());
     }
 
     @Test
-    void testSetNullEmailThrowsException() {
+    void testSetNullEmailAllowed() {
         User user = new User("admin", "admin@hit.ac.il", "pass123", 25);
-        assertThrows(ValidationException.class, () -> user.setEmail(null));
+        user.setEmail(null);
+        assertNull(user.getEmail());
     }
 
     @Test
-    void testSetNullPasswordThrowsException() {
+    void testSetNullPasswordAllowed() {
         User user = new User("admin", "admin@hit.ac.il", "pass123", 25);
-        assertThrows(ValidationException.class, () -> user.setPassword(null));
+        user.setPassword(null);
+        assertNull(user.getPassword());
     }
 }

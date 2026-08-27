@@ -44,6 +44,44 @@ class UserFactoryTest {
     }
 
     @Test
+    void testCreateUserWithInvalidCaseThrowsException() {
+        ValidationException exceptionBasic1 = assertThrows(ValidationException.class, () -> {
+            UserFactory.createUser("Basic", "test", "test@test.com", "pass", 20);
+        });
+        assertEquals("Unsupported user type: Basic", exceptionBasic1.getMessage());
+
+        ValidationException exceptionBasic2 = assertThrows(ValidationException.class, () -> {
+            UserFactory.createUser("BASIC", "test", "test@test.com", "pass", 20);
+        });
+        assertEquals("Unsupported user type: BASIC", exceptionBasic2.getMessage());
+
+        ValidationException exceptionPremium1 = assertThrows(ValidationException.class, () -> {
+            UserFactory.createUser("PREMIUM", "test", "test@test.com", "pass", 20);
+        });
+        assertEquals("Unsupported user type: PREMIUM", exceptionPremium1.getMessage());
+
+        ValidationException exceptionPremium2 = assertThrows(ValidationException.class, () -> {
+            UserFactory.createUser("Premium", "test", "test@test.com", "pass", 20);
+        });
+        assertEquals("Unsupported user type: Premium", exceptionPremium2.getMessage());
+
+        ValidationException exceptionPlatinum1 = assertThrows(ValidationException.class, () -> {
+            UserFactory.createUser("PLATINUM", "test", "test@test.com", "pass", 20);
+        });
+        assertEquals("Unsupported user type: PLATINUM", exceptionPlatinum1.getMessage());
+
+        ValidationException exceptionPlatinum2 = assertThrows(ValidationException.class, () -> {
+            UserFactory.createUser("Platinum", "test", "test@test.com", "pass", 20);
+        });
+        assertEquals("Unsupported user type: Platinum", exceptionPlatinum2.getMessage());
+        
+        ValidationException exceptionSpace = assertThrows(ValidationException.class, () -> {
+            UserFactory.createUser("basic ", "test", "test@test.com", "pass", 20);
+        });
+        assertEquals("Unsupported user type: basic ", exceptionSpace.getMessage());
+    }
+
+    @Test
     void testCreateNullUserTypeThrowsException() {
         ValidationException exception = assertThrows(ValidationException.class, () -> {
             UserFactory.createUser(null, "test", "test@test.com", "pass", 20);

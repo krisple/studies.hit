@@ -12,7 +12,6 @@ public class BasicUser extends User {
      * @param email    the user's email address
      * @param password the secret credential used for authentication
      * @param age      the user's age in years
-     * @throws ValidationException if the username, email, or password provided is null
      */
     public BasicUser(String username, String email, String password, int age) {
         super(username, email, password, age);

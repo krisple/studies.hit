@@ -18,7 +18,6 @@ public class User {
      * @param email    the user's email address
      * @param password the secret credential used for authentication
      * @param age      the user's age in years
-     * @throws ValidationException if the username, email, or password provided is null
      */
     public User(String username, String email, String password, int age) {
         setUsername(username);
@@ -40,12 +39,8 @@ public class User {
      * Updates the user's primary identifier.
      *
      * @param username the new primary identifier
-     * @throws ValidationException if the provided username is null
      */
     public void setUsername(String username) {
-        if (username == null) {
-            throw new ValidationException("Username cannot be null.");
-        }
         this.username = username;
     }
 
@@ -62,12 +57,8 @@ public class User {
      * Updates the user's email address.
      *
      * @param email the new email address
-     * @throws ValidationException if the provided email is null
      */
     public void setEmail(String email) {
-        if (email == null) {
-            throw new ValidationException("Email cannot be null.");
-        }
         this.email = email;
     }
 
@@ -84,12 +75,8 @@ public class User {
      * Updates the user's authentication credential.
      *
      * @param password the new password
-     * @throws ValidationException if the provided password is null
      */
     public void setPassword(String password) {
-        if (password == null) {
-            throw new ValidationException("Password cannot be null.");
-        }
         this.password = password;
     }
 

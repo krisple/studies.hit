@@ -51,17 +51,30 @@ class UserValidationTest {
 
     @Test
     void testPasswordIncludesLettersNumbersOnly() {
-        User validUser = new User("user", "test@test.co.il", "pass123WORD", 20);
-        ValidationResult validResult = UserValidation.passwordIncludesLettersNumbersOnly().apply(validUser);
-        assertTrue(validResult.isValid());
+        User lettersAndNumbersUser = new User("user", "test@test.co.il", "pass123WORD", 20);
+        ValidationResult lettersAndNumbersResult = UserValidation.passwordIncludesLettersNumbersOnly()
+                                                                .apply(lettersAndNumbersUser);
+        assertTrue(lettersAndNumbersResult.isValid());
 
-        User invalidUser = new User("user", "test@test.co.il", "pass123WORD$", 20);
-        ValidationResult invalidResult = UserValidation.passwordIncludesLettersNumbersOnly().apply(invalidUser);
-        assertFalse(invalidResult.isValid());
+        User lettersOnlyUser = new User("user", "test@test.co.il", "passwordOnlyLetters", 20);
+        ValidationResult lettersOnlyResult = UserValidation.passwordIncludesLettersNumbersOnly()
+                                                        .apply(lettersOnlyUser);
+        assertTrue(lettersOnlyResult.isValid());
+
+        User numbersOnlyUser = new User("user", "test@test.co.il", "1234567890", 20);
+        ValidationResult numbersOnlyResult = UserValidation.passwordIncludesLettersNumbersOnly()
+                                                        .apply(numbersOnlyUser);
+        assertTrue(numbersOnlyResult.isValid());
+
+        User nonAlphanumericUser = new User("user", "test@test.co.il", "pass123WORD$", 20);
+        ValidationResult nonAlphanumericResult = UserValidation.passwordIncludesLettersNumbersOnly()
+                                                            .apply(nonAlphanumericUser);
+        assertFalse(nonAlphanumericResult.isValid());
 
         User emptyPasswordUser = new User("user", "test@test.co.il", "", 20);
-        ValidationResult emptyResult = UserValidation.passwordIncludesLettersNumbersOnly().apply(emptyPasswordUser);
-        assertFalse(emptyResult.isValid());
+        ValidationResult emptyPasswordResult = UserValidation.passwordIncludesLettersNumbersOnly()
+                                                            .apply(emptyPasswordUser);
+        assertTrue(emptyPasswordResult.isValid());
     }
 
     @Test
@@ -122,6 +135,23 @@ class UserValidationTest {
     }
 
     @Test
+    void testNullFieldsReturnInvalid() {
+        User userWithNullEmail = new User("user", null, "password", 20);
+        assertFalse(UserValidation.emailEndsWithIL().apply(userWithNullEmail).isValid());
+        assertFalse(UserValidation.emailLengthBiggerThan10().apply(userWithNullEmail).isValid());
+
+        User userWithNullPassword = new User("user", "test@test.co.il", null, 20);
+        assertFalse(UserValidation.passwordLengthBiggerThan8().apply(userWithNullPassword).isValid());
+        assertFalse(UserValidation.passwordIncludesLettersNumbersOnly().apply(userWithNullPassword).isValid());
+        assertFalse(UserValidation.passwordIncludesDollarSign().apply(userWithNullPassword).isValid());
+        assertFalse(UserValidation.passwordIsDifferentFromUsername().apply(userWithNullPassword).isValid());
+
+        User userWithNullUsername = new User(null, "test@test.co.il", "password", 20);
+        assertFalse(UserValidation.usernameLengthBiggerThan8().apply(userWithNullUsername).isValid());
+        assertFalse(UserValidation.passwordIsDifferentFromUsername().apply(userWithNullUsername).isValid());
+    }
+
+    @Test
     void testAndCombinatorShortCircuit() {
         boolean[] isSecondValidationExecuted = {false};
         
@@ -155,6 +185,9 @@ class UserValidationTest {
     void testAndCombinatorNullHandling() {
         UserValidation firstValid = user -> new Valid();
         assertThrows(ValidationException.class, () -> firstValid.and(null));
+        
+        UserValidation andCombinator = firstValid.and(user -> new Valid());
+        assertThrows(ValidationException.class, () -> andCombinator.apply(null));
     }
 
     @Test
@@ -190,6 +223,9 @@ class UserValidationTest {
     void testOrCombinatorNullHandling() {
         UserValidation firstValid = user -> new Valid();
         assertThrows(ValidationException.class, () -> firstValid.or(null));
+        
+        UserValidation orCombinator = firstValid.or(user -> new Valid());
+        assertThrows(ValidationException.class, () -> orCombinator.apply(null));
     }
 
     @Test
@@ -214,6 +250,9 @@ class UserValidationTest {
     void testXorCombinatorNullHandling() {
         UserValidation firstValid = user -> new Valid();
         assertThrows(ValidationException.class, () -> firstValid.xor(null));
+        
+        UserValidation xorCombinator = firstValid.xor(user -> new Valid());
+        assertThrows(ValidationException.class, () -> xorCombinator.apply(null));
     }
 
     @Test
@@ -241,6 +280,9 @@ class UserValidationTest {
         
         UserValidation firstValid = user -> new Valid();
         assertThrows(ValidationException.class, () -> UserValidation.all(firstValid, null));
+        
+        assertThrows(ValidationException.class, () -> UserValidation.all().apply(null));
+        assertThrows(ValidationException.class, () -> UserValidation.all(firstValid).apply(null));
     }
 
     @Test
@@ -268,6 +310,9 @@ class UserValidationTest {
         
         UserValidation firstInvalid = user -> new Invalid("First failed");
         assertThrows(ValidationException.class, () -> UserValidation.none(firstInvalid, null));
+        
+        assertThrows(ValidationException.class, () -> UserValidation.none().apply(null));
+        assertThrows(ValidationException.class, () -> UserValidation.none(firstInvalid).apply(null));
     }
 
     @Test
