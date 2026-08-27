@@ -7,6 +7,8 @@ import java.util.Optional;
  */
 public interface ValidationResult {
 
+    // Implementations represent either a successful or a failed validation outcome.
+
     /**
      * Checks if the validation passed.
      *

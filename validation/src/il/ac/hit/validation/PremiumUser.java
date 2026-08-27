@@ -14,6 +14,7 @@ public class PremiumUser extends User {
      * @param age      the user's age in years
      */
     public PremiumUser(String username, String email, String password, int age) {
+        // Reuse the User initialization path for all shared user state.
         super(username, email, password, age);
     }
 
@@ -24,6 +25,7 @@ public class PremiumUser extends User {
      */
     @Override
     public String toString() {
+        // Prefix the base representation with the concrete user type.
         return "Premium" + super.toString();
     }
 }

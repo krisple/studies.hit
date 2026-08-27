@@ -45,6 +45,7 @@ class UserFactoryTest {
 
     @Test
     void testCreateUserWithInvalidCaseThrowsException() {
+        // Basic variants
         ValidationException exceptionBasic1 = assertThrows(ValidationException.class, () -> {
             UserFactory.createUser("Basic", "test", "test@test.com", "pass", 20);
         });
@@ -55,6 +56,7 @@ class UserFactoryTest {
         });
         assertEquals("Unsupported user type: BASIC", exceptionBasic2.getMessage());
 
+        // Premium variants
         ValidationException exceptionPremium1 = assertThrows(ValidationException.class, () -> {
             UserFactory.createUser("PREMIUM", "test", "test@test.com", "pass", 20);
         });
@@ -65,6 +67,7 @@ class UserFactoryTest {
         });
         assertEquals("Unsupported user type: Premium", exceptionPremium2.getMessage());
 
+        // Platinum variants
         ValidationException exceptionPlatinum1 = assertThrows(ValidationException.class, () -> {
             UserFactory.createUser("PLATINUM", "test", "test@test.com", "pass", 20);
         });
@@ -75,6 +78,7 @@ class UserFactoryTest {
         });
         assertEquals("Unsupported user type: Platinum", exceptionPlatinum2.getMessage());
         
+        // Trailing-space variant
         ValidationException exceptionSpace = assertThrows(ValidationException.class, () -> {
             UserFactory.createUser("basic ", "test", "test@test.com", "pass", 20);
         });

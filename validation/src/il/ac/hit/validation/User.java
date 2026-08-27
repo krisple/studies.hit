@@ -21,6 +21,7 @@ public class User {
      * @param age      the user's age in years
      */
     public User(String username, String email, String password, int age) {
+        // Route all initialization through the setters to keep assignments centralized.
         setUsername(username);
         setEmail(email);
         setPassword(password);
@@ -42,6 +43,7 @@ public class User {
      * @param username the new primary identifier
      */
     public void setUsername(String username) {
+        // Store the value as-is; validation is intentionally handled by UserValidation.
         this.username = username;
     }
 
@@ -60,6 +62,7 @@ public class User {
      * @param email the new email address
      */
     public void setEmail(String email) {
+        // Store the value as-is; validation is intentionally handled by UserValidation.
         this.email = email;
     }
 
@@ -78,6 +81,7 @@ public class User {
      * @param password the new password
      */
     public void setPassword(String password) {
+        // Store the value as-is; validation is intentionally handled by UserValidation.
         this.password = password;
     }
 
@@ -96,6 +100,7 @@ public class User {
      * @param age the new age in years
      */
     public void setAge(int age) {
+        // Store the value as-is; validation is intentionally handled by UserValidation.
         this.age = age;
     }
 

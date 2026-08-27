@@ -47,6 +47,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
     }
 
     private static void requireValidationsNotNull(UserValidation... validations) {
+        // Validate the varargs container first and then every supplied validation.
         requireNotNull(validations, "The validations array cannot be null.");
         for (UserValidation validation : validations) {
             requireNotNull(validation, "The validation element to combine cannot be null.");
@@ -56,6 +57,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
     private static UserValidation createValidation(Predicate<User> condition, String failureReason) {
         requireNotNull(condition, "The condition cannot be null.");
         requireNotNull(failureReason, "The failure reason cannot be null.");
+        // Build a reusable validation that converts the predicate result into a ValidationResult.
         return user -> {
             requireNotNull(user, "The user cannot be null.");
             if (condition.test(user)) {
@@ -71,6 +73,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a UserValidation instance for this rule
      */
     public static UserValidation emailEndsWithIL() {
+        // A null email fails this rule before the required suffix is evaluated.
         return createValidation(
                 user -> user.getEmail() != null && user.getEmail().endsWith(REQUIRED_EMAIL_SUFFIX),
                 "Email must end with '" + REQUIRED_EMAIL_SUFFIX + "'."
@@ -83,6 +86,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a UserValidation instance for this rule
      */
     public static UserValidation emailLengthBiggerThan10() {
+        // A null email fails this rule before the strict length boundary is evaluated.
         return createValidation(
                 user -> user.getEmail() != null && user.getEmail().length() > EMAIL_LENGTH_THRESHOLD,
                 "Email length must be strictly greater than " + EMAIL_LENGTH_THRESHOLD + " characters."
@@ -95,6 +99,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a UserValidation instance for this rule
      */
     public static UserValidation passwordLengthBiggerThan8() {
+        // A null password fails this rule before the strict length boundary is evaluated.
         return createValidation(
                 user -> user.getPassword() != null && user.getPassword().length() > PASSWORD_LENGTH_THRESHOLD,
                 "Password length must be strictly greater than " + PASSWORD_LENGTH_THRESHOLD + " characters."
@@ -108,6 +113,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a UserValidation instance for this rule
      */
     public static UserValidation passwordIncludesLettersNumbersOnly() {
+        // Length is validated separately; this rule checks only the allowed character set.
         return createValidation(
                 user -> user.getPassword() != null && user.getPassword().matches("^[a-zA-Z0-9]*$"),
                 "Password must contain letters and/or numbers only."
@@ -120,6 +126,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a UserValidation instance for this rule
      */
     public static UserValidation passwordIncludesDollarSign() {
+        // A null password fails this rule before the required symbol is searched for.
         return createValidation(
                 user -> user.getPassword() != null && user.getPassword().contains(REQUIRED_PASSWORD_SYMBOL),
                 "Password must include a '" + REQUIRED_PASSWORD_SYMBOL + "' sign."
@@ -132,6 +139,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a UserValidation instance for this rule
      */
     public static UserValidation passwordIsDifferentFromUsername() {
+        // Both values must exist before they can be compared safely.
         return createValidation(
                 user -> user.getUsername() != null && user.getPassword() != null && !user.getPassword().equals(user.getUsername()),
                 "Password must be different from the username."
@@ -144,6 +152,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a UserValidation instance for this rule
      */
     public static UserValidation ageBiggerThan18() {
+        // Age validation belongs to the external validation layer rather than the User class.
         return createValidation(
                 user -> user.getAge() > AGE_THRESHOLD,
                 "Age must be strictly greater than " + AGE_THRESHOLD + "."
@@ -156,6 +165,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a UserValidation instance for this rule
      */
     public static UserValidation usernameLengthBiggerThan8() {
+        // A null username fails this rule before the strict length boundary is evaluated.
         return createValidation(
                 user -> user.getUsername() != null && user.getUsername().length() > USERNAME_LENGTH_THRESHOLD,
                 "Username length must be strictly greater than " + USERNAME_LENGTH_THRESHOLD + " characters."
@@ -173,6 +183,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
         requireNotNull(other, "The validation to combine cannot be null.");
         return user -> {
             requireNotNull(user, "The user cannot be null.");
+            // Evaluate the left side first so a failure can short-circuit the chain.
             ValidationResult firstResult = this.apply(user);
             if (!firstResult.isValid()) {
                 return firstResult;
@@ -192,10 +203,12 @@ public interface UserValidation extends Function<User, ValidationResult> {
         requireNotNull(other, "The validation to combine cannot be null.");
         return user -> {
             requireNotNull(user, "The user cannot be null.");
+            // Evaluate the left side first because one successful validation is sufficient.
             ValidationResult firstResult = this.apply(user);
             if (firstResult.isValid()) {
                 return new Valid();
             }
+            // Evaluate the second validation only when the first one failed.
             ValidationResult secondResult = other.apply(user);
             if (secondResult.isValid()) {
                 return new Valid();
@@ -215,6 +228,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
         requireNotNull(other, "The validation to combine cannot be null.");
         return user -> {
             requireNotNull(user, "The user cannot be null.");
+            // XOR requires both outcomes, so both validations must always be evaluated.
             ValidationResult firstResult = this.apply(user);
             ValidationResult secondResult = other.apply(user);
 
@@ -242,6 +256,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
         requireValidationsNotNull(validations);
         return user -> {
             requireNotNull(user, "The user cannot be null.");
+            // Stop at the first failed validation and preserve its failure result.
             for (UserValidation validation : validations) {
                 ValidationResult result = validation.apply(user);
                 if (!result.isValid()) {
@@ -263,6 +278,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
         requireValidationsNotNull(validations);
         return user -> {
             requireNotNull(user, "The user cannot be null.");
+            // Any successful validation makes the NONE combination fail immediately.
             for (UserValidation validation : validations) {
                 ValidationResult result = validation.apply(user);
                 if (result.isValid()) {

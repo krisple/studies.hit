@@ -16,6 +16,7 @@ public class UserUtils {
      * @throws ValidationException if the users array or comparator is null
      */
     public static void sort(User[] users, Comparator<User> comparator) {
+        // Validate both inputs before delegating the sorting operation.
         if (users == null) {
             throw new ValidationException("Users array cannot be null.");
         }
@@ -23,6 +24,7 @@ public class UserUtils {
             throw new ValidationException("Comparator cannot be null.");
         }
 
+        // The supplied Comparator defines the ordering strategy for the users.
         Arrays.sort(users, comparator);
     }
 }

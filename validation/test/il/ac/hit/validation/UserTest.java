@@ -44,8 +44,10 @@ class UserTest {
 
     @Test
     void testSettersAndGetters() {
+        // Arrange
         User user = new User("admin", "admin@hit.ac.il", "pass123", 25);
         
+        // Act & Assert
         user.setUsername("newAdmin");
         assertEquals("newAdmin", user.getUsername());
         

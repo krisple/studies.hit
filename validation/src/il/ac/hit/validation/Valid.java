@@ -26,6 +26,7 @@ public class Valid implements ValidationResult {
      */
     @Override
     public Optional<String> getReason() {
+        // Successful validations have no failure reason to expose.
         return Optional.empty();
     }
 

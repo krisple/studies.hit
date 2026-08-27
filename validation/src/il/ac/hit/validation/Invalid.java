@@ -46,6 +46,7 @@ public class Invalid implements ValidationResult {
     }
 
     private void setReason(String reason) {
+        // Every Invalid result must contain a meaningful failure reason.
         if (reason == null || reason.trim().isEmpty()) {
             throw new ValidationException("Invalid reason cannot be null or empty.");
         }

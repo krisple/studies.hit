@@ -22,6 +22,7 @@ public class ValidationException extends RuntimeException {
      * @param cause   the underlying exception that triggered this validation error
      */
     public ValidationException(String message, Throwable cause) {
+        // Preserve the original cause when wrapping a lower-level failure.
         super(message, cause);
     }
 

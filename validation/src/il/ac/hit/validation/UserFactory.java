@@ -21,10 +21,12 @@ public class UserFactory {
      * @throws ValidationException if the provided type is null or unsupported
      */
     public static User createUser(String type, String username, String email, String password, int age) {
+        // Validate the required factory selector before choosing a concrete user type.
         if (type == null) {
             throw new ValidationException("User type cannot be null.");
         }
 
+        // Match only the exact type strings required by the project specification.
         switch (type) {
             case TYPE_BASIC:
                 return new BasicUser(username, email, password, age);

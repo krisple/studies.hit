@@ -10,10 +10,12 @@ class UserValidationTest {
         User validUser = new User("username", "test@test.co.il", "password", 20);
         User invalidUser = new User("username", "test@test.com", "password", 20);
         
+        // Valid case
         ValidationResult validResult = UserValidation.emailEndsWithIL().apply(validUser);
         assertTrue(validResult.isValid());
         assertFalse(validResult.getReason().isPresent());
 
+        // Invalid case
         ValidationResult invalidResult = UserValidation.emailEndsWithIL().apply(invalidUser);
         assertFalse(invalidResult.isValid());
         assertTrue(invalidResult.getReason().isPresent());
@@ -21,14 +23,17 @@ class UserValidationTest {
 
     @Test
     void testEmailLengthBiggerThan10() {
+        // Boundary case
         User boundaryUser = new User("user", "1234567890", "password", 20);
         ValidationResult boundaryResult = UserValidation.emailLengthBiggerThan10().apply(boundaryUser);
         assertFalse(boundaryResult.isValid());
 
+        // Valid case
         User validUser = new User("user", "12345678901", "password", 20);
         ValidationResult validResult = UserValidation.emailLengthBiggerThan10().apply(validUser);
         assertTrue(validResult.isValid());
 
+        // Invalid case
         User invalidUser = new User("user", "123456789", "password", 20);
         ValidationResult invalidResult = UserValidation.emailLengthBiggerThan10().apply(invalidUser);
         assertFalse(invalidResult.isValid());
@@ -36,14 +41,17 @@ class UserValidationTest {
 
     @Test
     void testPasswordLengthBiggerThan8() {
+        // Boundary case
         User boundaryUser = new User("user", "test@test.co.il", "12345678", 20);
         ValidationResult boundaryResult = UserValidation.passwordLengthBiggerThan8().apply(boundaryUser);
         assertFalse(boundaryResult.isValid());
 
+        // Valid case
         User validUser = new User("user", "test@test.co.il", "123456789", 20);
         ValidationResult validResult = UserValidation.passwordLengthBiggerThan8().apply(validUser);
         assertTrue(validResult.isValid());
 
+        // Invalid case
         User invalidUser = new User("user", "test@test.co.il", "1234567", 20);
         ValidationResult invalidResult = UserValidation.passwordLengthBiggerThan8().apply(invalidUser);
         assertFalse(invalidResult.isValid());
@@ -51,26 +59,31 @@ class UserValidationTest {
 
     @Test
     void testPasswordIncludesLettersNumbersOnly() {
+        // Letters and numbers
         User lettersAndNumbersUser = new User("user", "test@test.co.il", "pass123WORD", 20);
         ValidationResult lettersAndNumbersResult = UserValidation.passwordIncludesLettersNumbersOnly()
                                                                 .apply(lettersAndNumbersUser);
         assertTrue(lettersAndNumbersResult.isValid());
 
+        // Letters only
         User lettersOnlyUser = new User("user", "test@test.co.il", "passwordOnlyLetters", 20);
         ValidationResult lettersOnlyResult = UserValidation.passwordIncludesLettersNumbersOnly()
                                                         .apply(lettersOnlyUser);
         assertTrue(lettersOnlyResult.isValid());
 
+        // Numbers only
         User numbersOnlyUser = new User("user", "test@test.co.il", "1234567890", 20);
         ValidationResult numbersOnlyResult = UserValidation.passwordIncludesLettersNumbersOnly()
                                                         .apply(numbersOnlyUser);
         assertTrue(numbersOnlyResult.isValid());
 
+        // Unsupported character
         User nonAlphanumericUser = new User("user", "test@test.co.il", "pass123WORD$", 20);
         ValidationResult nonAlphanumericResult = UserValidation.passwordIncludesLettersNumbersOnly()
                                                             .apply(nonAlphanumericUser);
         assertFalse(nonAlphanumericResult.isValid());
 
+        // Empty password
         User emptyPasswordUser = new User("user", "test@test.co.il", "", 20);
         ValidationResult emptyPasswordResult = UserValidation.passwordIncludesLettersNumbersOnly()
                                                             .apply(emptyPasswordUser);
@@ -84,10 +97,12 @@ class UserValidationTest {
 
     @Test
     void testPasswordIncludesDollarSign() {
+        // Valid case
         User validUser = new User("user", "test@test.co.il", "pass$word", 20);
         ValidationResult validResult = UserValidation.passwordIncludesDollarSign().apply(validUser);
         assertTrue(validResult.isValid());
 
+        // Invalid case
         User invalidUser = new User("user", "test@test.co.il", "password", 20);
         ValidationResult invalidResult = UserValidation.passwordIncludesDollarSign().apply(invalidUser);
         assertFalse(invalidResult.isValid());
@@ -95,10 +110,12 @@ class UserValidationTest {
 
     @Test
     void testPasswordIsDifferentFromUsername() {
+        // Valid case
         User validUser = new User("username", "test@test.co.il", "password", 20);
         ValidationResult validResult = UserValidation.passwordIsDifferentFromUsername().apply(validUser);
         assertTrue(validResult.isValid());
 
+        // Invalid case
         User invalidUser = new User("username", "test@test.co.il", "username", 20);
         ValidationResult invalidResult = UserValidation.passwordIsDifferentFromUsername().apply(invalidUser);
         assertFalse(invalidResult.isValid());
@@ -106,14 +123,17 @@ class UserValidationTest {
 
     @Test
     void testAgeBiggerThan18() {
+        // Boundary case
         User boundaryUser = new User("user", "test@test.co.il", "password", 18);
         ValidationResult boundaryResult = UserValidation.ageBiggerThan18().apply(boundaryUser);
         assertFalse(boundaryResult.isValid());
 
+        // Valid case
         User validUser = new User("user", "test@test.co.il", "password", 19);
         ValidationResult validResult = UserValidation.ageBiggerThan18().apply(validUser);
         assertTrue(validResult.isValid());
 
+        // Invalid case
         User invalidUser = new User("user", "test@test.co.il", "password", 17);
         ValidationResult invalidResult = UserValidation.ageBiggerThan18().apply(invalidUser);
         assertFalse(invalidResult.isValid());
@@ -121,14 +141,17 @@ class UserValidationTest {
 
     @Test
     void testUsernameLengthBiggerThan8() {
+        // Boundary case
         User boundaryUser = new User("username", "test@test.co.il", "password", 20); 
         ValidationResult boundaryResult = UserValidation.usernameLengthBiggerThan8().apply(boundaryUser);
         assertFalse(boundaryResult.isValid());
 
+        // Valid case
         User validUser = new User("username1", "test@test.co.il", "password", 20); 
         ValidationResult validResult = UserValidation.usernameLengthBiggerThan8().apply(validUser);
         assertTrue(validResult.isValid());
 
+        // Invalid case
         User invalidUser = new User("user", "test@test.co.il", "password", 20);
         ValidationResult invalidResult = UserValidation.usernameLengthBiggerThan8().apply(invalidUser);
         assertFalse(invalidResult.isValid());
@@ -153,6 +176,7 @@ class UserValidationTest {
 
     @Test
     void testAndCombinatorShortCircuit() {
+        // Track whether the second validation executes.
         boolean[] isSecondValidationExecuted = {false};
         
         UserValidation firstInvalid = user -> new Invalid("First failed");
@@ -163,6 +187,7 @@ class UserValidationTest {
 
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
 
+        // Combine the validations and evaluate the user.
         ValidationResult result = firstInvalid.and(secondValidation).apply(dummyUser);
         
         assertFalse(result.isValid());
@@ -175,6 +200,7 @@ class UserValidationTest {
         UserValidation secondInvalid = user -> new Invalid("Second failed");
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
 
+        // Combine the validations and evaluate the user.
         ValidationResult result = firstValid.and(secondInvalid).apply(dummyUser);
         
         assertFalse(result.isValid());
@@ -192,6 +218,7 @@ class UserValidationTest {
 
     @Test
     void testOrCombinatorShortCircuit() {
+        // Track whether the second validation executes.
         boolean[] isSecondValidationExecuted = {false};
         
         UserValidation firstValid = user -> new Valid();
@@ -202,6 +229,7 @@ class UserValidationTest {
 
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
 
+        // Combine the validations and evaluate the user.
         ValidationResult result = firstValid.or(secondValidation).apply(dummyUser);
         
         assertTrue(result.isValid());
@@ -214,6 +242,7 @@ class UserValidationTest {
         UserValidation secondValid = user -> new Valid();
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
 
+        // Combine the validations and evaluate the user.
         ValidationResult result = firstInvalid.or(secondValid).apply(dummyUser);
         
         assertTrue(result.isValid());
@@ -230,6 +259,7 @@ class UserValidationTest {
 
     @Test
     void testXorCombinatorEvaluatesBoth() {
+        // Track whether the second validation executes.
         boolean[] isSecondValidationExecuted = {false};
         
         UserValidation firstValid = user -> new Valid();
@@ -240,6 +270,7 @@ class UserValidationTest {
 
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
 
+        // Combine the validations and evaluate the user.
         ValidationResult result = firstValid.xor(secondValidation).apply(dummyUser);
         
         assertFalse(result.isValid());
@@ -257,6 +288,7 @@ class UserValidationTest {
 
     @Test
     void testAllCombinatorShortCircuit() {
+        // Track whether the third validation executes.
         boolean[] isThirdValidationExecuted = {false};
         
         UserValidation firstValid = user -> new Valid();
@@ -268,6 +300,7 @@ class UserValidationTest {
 
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
 
+        // Combine the validations and evaluate the user.
         ValidationResult result = UserValidation.all(firstValid, secondInvalid, thirdValidation).apply(dummyUser);
         
         assertFalse(result.isValid());
@@ -287,6 +320,7 @@ class UserValidationTest {
 
     @Test
     void testNoneCombinatorShortCircuit() {
+        // Track whether the third validation executes.
         boolean[] isThirdValidationExecuted = {false};
         
         UserValidation firstInvalid = user -> new Invalid("First failed");
@@ -298,6 +332,7 @@ class UserValidationTest {
 
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
 
+        // Combine the validations and evaluate the user.
         ValidationResult result = UserValidation.none(firstInvalid, secondValid, thirdValidation).apply(dummyUser);
         
         assertFalse(result.isValid());
