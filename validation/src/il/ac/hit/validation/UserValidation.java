@@ -172,6 +172,11 @@ public interface UserValidation extends Function<User, ValidationResult> {
         );
     }
 
+    /*
+     * The Combinator pattern composes simple UserValidation rules into larger rules.
+     * AND, OR, ALL, and NONE short-circuit once the final result is known,
+     * while XOR evaluates both sides because its result depends on both outcomes.
+     */
     /**
      * Logical AND combinator. Short-circuits on first failure.
      *

@@ -7,6 +7,7 @@ class UserFactoryTest {
 
     @Test
     void testCreateBasicUser() {
+        // Verify the required basic mapping and propagation of the supplied user state.
         User user = UserFactory.createUser("basic", "john_doe", "john@example.com", "pass123", 25);
         assertTrue(user instanceof BasicUser);
         assertEquals("john_doe", user.getUsername());
@@ -17,6 +18,7 @@ class UserFactoryTest {
 
     @Test
     void testCreatePremiumUser() {
+        // Verify the required premium mapping and propagation of the supplied user state.
         User user = UserFactory.createUser("premium", "jane_doe", "jane@example.com", "pass456", 30);
         assertTrue(user instanceof PremiumUser);
         assertEquals("jane_doe", user.getUsername());
@@ -27,6 +29,7 @@ class UserFactoryTest {
 
     @Test
     void testCreatePlatinumUser() {
+        // Verify the required platinum mapping and propagation of the supplied user state.
         User user = UserFactory.createUser("platinum", "alex_smith", "alex@example.com", "pass789", 40);
         assertTrue(user instanceof PlatinumUser);
         assertEquals("alex_smith", user.getUsername());
@@ -37,6 +40,7 @@ class UserFactoryTest {
 
     @Test
     void testCreateUnsupportedUserTypeThrowsException() {
+        // Reject selectors that are outside the factory mappings required by the project.
         ValidationException exception = assertThrows(ValidationException.class, () -> {
             UserFactory.createUser("gold", "test", "test@test.com", "pass", 20);
         });
@@ -87,6 +91,7 @@ class UserFactoryTest {
 
     @Test
     void testCreateNullUserTypeThrowsException() {
+        // Reject a missing factory selector before concrete type selection begins.
         ValidationException exception = assertThrows(ValidationException.class, () -> {
             UserFactory.createUser(null, "test", "test@test.com", "pass", 20);
         });

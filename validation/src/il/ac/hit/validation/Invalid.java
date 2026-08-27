@@ -22,6 +22,7 @@ public class Invalid implements ValidationResult {
     /**
      * {@inheritDoc}
      */
+    // Expose the failed validation outcome through the shared ValidationResult contract.
     @Override
     public boolean isValid() {
         return false;

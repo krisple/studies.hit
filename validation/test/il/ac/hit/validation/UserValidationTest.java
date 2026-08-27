@@ -358,6 +358,7 @@ class UserValidationTest {
 
     @Test
     void testAndCombinatorValidAndValid() {
+        // Verify the successful AND truth-table outcome.
         UserValidation firstValid = user -> new Valid();
         UserValidation secondValid = user -> new Valid();
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
@@ -369,6 +370,7 @@ class UserValidationTest {
 
     @Test
     void testAndCombinatorInvalidAndInvalid() {
+        // Verify that AND preserves the first failure when both validations fail.
         UserValidation firstInvalid = user -> new Invalid("First failed");
         UserValidation secondInvalid = user -> new Invalid("Second failed");
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
@@ -381,6 +383,7 @@ class UserValidationTest {
 
     @Test
     void testOrCombinatorInvalidOrInvalid() {
+        // Verify that OR preserves the first failure when neither validation succeeds.
         UserValidation firstInvalid = user -> new Invalid("First failed");
         UserValidation secondInvalid = user -> new Invalid("Second failed");
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
@@ -393,6 +396,7 @@ class UserValidationTest {
 
     @Test
     void testXorCombinatorValidXorInvalid() {
+        // Verify that XOR succeeds when only the left validation succeeds.
         UserValidation firstValid = user -> new Valid();
         UserValidation secondInvalid = user -> new Invalid("Second failed");
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
@@ -404,6 +408,7 @@ class UserValidationTest {
 
     @Test
     void testXorCombinatorInvalidXorValid() {
+        // Verify that XOR succeeds when only the right validation succeeds.
         UserValidation firstInvalid = user -> new Invalid("First failed");
         UserValidation secondValid = user -> new Valid();
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
@@ -415,6 +420,7 @@ class UserValidationTest {
 
     @Test
     void testXorCombinatorInvalidXorInvalid() {
+        // Verify that XOR reports failure when neither validation succeeds.
         UserValidation firstInvalid = user -> new Invalid("First failed");
         UserValidation secondInvalid = user -> new Invalid("Second failed");
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
@@ -427,6 +433,7 @@ class UserValidationTest {
 
     @Test
     void testAllCombinatorEmpty() {
+        // Verify that ALL uses Valid as the identity result for an empty validation set.
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
 
         ValidationResult result = UserValidation.all().apply(dummyUser);
@@ -436,6 +443,7 @@ class UserValidationTest {
 
     @Test
     void testAllCombinatorAllValid() {
+        // Verify that ALL succeeds when every supplied validation succeeds.
         UserValidation firstValid = user -> new Valid();
         UserValidation secondValid = user -> new Valid();
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
@@ -447,6 +455,7 @@ class UserValidationTest {
 
     @Test
     void testNoneCombinatorEmpty() {
+        // Verify that NONE returns Valid for an empty validation set.
         User dummyUser = new User("username", "test@test.co.il", "password", 20);
 
         ValidationResult result = UserValidation.none().apply(dummyUser);
@@ -456,6 +465,7 @@ class UserValidationTest {
 
     @Test
     void testNoneCombinatorAllInvalid() {
+        // Verify that NONE succeeds when every supplied validation fails.
         UserValidation firstInvalid = user -> new Invalid("First failed");
         UserValidation secondInvalid = user -> new Invalid("Second failed");
         User dummyUser = new User("username", "test@test.co.il", "password", 20);

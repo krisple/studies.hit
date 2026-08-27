@@ -40,6 +40,7 @@ class UserUtilsTest {
 
     @Test
     void testSortNullUsersArrayThrowsException() {
+        // Verify that a missing users array is rejected before sorting begins.
         ValidationException exception = assertThrows(ValidationException.class, () -> {
             UserUtils.sort(null, Comparator.comparingInt(User::getAge));
         });
@@ -48,6 +49,7 @@ class UserUtilsTest {
 
     @Test
     void testSortNullComparatorThrowsException() {
+        // Verify that a missing comparison strategy is rejected before sorting begins.
         User[] users = {new User("alice", "alice@example.com", "pass", 30)};
         ValidationException exception = assertThrows(ValidationException.class, () -> {
             UserUtils.sort(users, null);
@@ -57,6 +59,7 @@ class UserUtilsTest {
 
     @Test
     void testSortEmptyArray() {
+        // Verify that sorting an empty array is a safe no-op.
         User[] users = {};
         UserUtils.sort(users, Comparator.comparingInt(User::getAge));
         assertEquals(0, users.length);
@@ -64,6 +67,7 @@ class UserUtilsTest {
 
     @Test
     void testSortSingleUserArray() {
+        // Verify that sorting a single-user array preserves its only element.
         User userAlice = new User("alice", "alice@example.com", "pass", 30);
         User[] users = {userAlice};
         UserUtils.sort(users, Comparator.comparingInt(User::getAge));

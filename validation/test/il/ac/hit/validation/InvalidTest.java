@@ -22,6 +22,7 @@ class InvalidTest {
 
     @Test
     void testInvalidResultNullReason() {
+        // Verify that failed results reject missing or blank failure reasons.
         ValidationException exception = assertThrows(ValidationException.class, () -> new Invalid(null));
         assertEquals("Invalid reason cannot be null or empty.", exception.getMessage());
     }

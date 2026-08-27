@@ -35,6 +35,7 @@ class UserTest {
 
     @Test
     void testToStringContainsProperties() {
+        // Verify that the textual representation exposes the complete stored user state.
         User user = new User("admin", "admin@hit.ac.il", "pass123", 25);
         String result = user.toString();
         assertTrue(result.contains("admin"));
@@ -64,6 +65,7 @@ class UserTest {
 
     @Test
     void testSetNullUsernameAllowed() {
+        // Verify that setter assignments also preserve null values for external validation.
         User user = new User("admin", "admin@hit.ac.il", "pass123", 25);
         user.setUsername(null);
         assertNull(user.getUsername());
