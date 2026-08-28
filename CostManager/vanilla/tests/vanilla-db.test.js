@@ -74,4 +74,23 @@ describe('standalone Vanilla db.js', () => {
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'Food', description: '' })).toThrow('Cost category and description must be non-empty strings');
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'Food', description: '   ' })).toThrow('Cost category and description must be non-empty strings');
     });
+
+    test('rejects blank database names and non-positive or non-integer versions', () => {
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => rates });
+        window.fetch = global.fetch;
+        window.eval(vanillaSource);
+        const identityError = 'databaseName must be a non-empty string and databaseVersion must be a positive integer';
+
+        // The classic-script API enforces the same database identity rules as the module.
+        expect(() => window.db.openCostsDB(123, 1)).toThrow(identityError);
+        expect(() => window.db.openCostsDB('', 1)).toThrow(identityError);
+        expect(() => window.db.openCostsDB('   ', 1)).toThrow(identityError);
+        expect(() => window.db.openCostsDB('valid-name', '1')).toThrow(identityError);
+        expect(() => window.db.openCostsDB('valid-name', 0)).toThrow(identityError);
+        expect(() => window.db.openCostsDB('valid-name', -1)).toThrow(identityError);
+        expect(() => window.db.openCostsDB('valid-name', 1.5)).toThrow(identityError);
+
+        // Surrounding whitespace remains part of a valid non-empty database name.
+        expect(() => window.db.openCostsDB('  valid-name  ', 1)).not.toThrow();
+    });
 });

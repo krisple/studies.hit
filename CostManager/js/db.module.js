@@ -180,8 +180,9 @@ function openCostsDB(databaseName, databaseVersion) {
     /* The returned methods close over only this database name, which supports multiple
        simultaneous database objects without hidden global current-database state. */
     // Reject an invalid database identity before creating instance-bound methods.
-    if (typeof databaseName !== 'string' || typeof databaseVersion !== 'number' || !Number.isFinite(databaseVersion)) {
-        throw new Error('databaseName must be a string and databaseVersion must be a finite number');
+    if (typeof databaseName !== 'string' || databaseName.trim() === '' ||
+        !Number.isInteger(databaseVersion) || databaseVersion <= 0) {
+        throw new Error('databaseName must be a non-empty string and databaseVersion must be a positive integer');
     }
 
     function addCost(cost) {

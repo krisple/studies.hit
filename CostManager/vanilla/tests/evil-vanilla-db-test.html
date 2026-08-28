@@ -507,12 +507,17 @@
         // Input attacks exercise validation, value preservation, and caller ownership boundaries.
         async function runAddCostAttackTests() {
             // Factory identity validation precedes all cost-level attack cases.
-            await test('addCost attacks', 'Rejects invalid database identity types', async () => {
+            await test('addCost attacks', 'Rejects blank names and invalid database versions', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     expectThrow(() => sandboxWindow.db.openCostsDB(123, 1), 'databaseName');
+                    expectThrow(() => sandboxWindow.db.openCostsDB('', 1), 'databaseName');
+                    expectThrow(() => sandboxWindow.db.openCostsDB('   ', 1), 'databaseName');
                     expectThrow(() => sandboxWindow.db.openCostsDB('name', '1'), 'databaseVersion');
                     expectThrow(() => sandboxWindow.db.openCostsDB('name', NaN), 'databaseVersion');
                     expectThrow(() => sandboxWindow.db.openCostsDB('name', Infinity), 'databaseVersion');
+                    expectThrow(() => sandboxWindow.db.openCostsDB('name', 0), 'databaseVersion');
+                    expectThrow(() => sandboxWindow.db.openCostsDB('name', -1), 'databaseVersion');
+                    expectThrow(() => sandboxWindow.db.openCostsDB('name', 1.5), 'databaseVersion');
                 });
             });
 

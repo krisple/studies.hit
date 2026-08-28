@@ -18,11 +18,23 @@ describe('db.module.js logic', () => {
     });
 
     test('openCostsDB rejects invalid database identity arguments', () => {
-        // The database boundary requires the documented string name and a finite numeric version.
-        expect(() => db.openCostsDB(123, 1)).toThrow('databaseName must be a string and databaseVersion must be a finite number');
-        expect(() => db.openCostsDB('testdb', '1')).toThrow('databaseName must be a string and databaseVersion must be a finite number');
-        expect(() => db.openCostsDB('testdb', NaN)).toThrow('databaseName must be a string and databaseVersion must be a finite number');
-        expect(() => db.openCostsDB('testdb', Infinity)).toThrow('databaseName must be a string and databaseVersion must be a finite number');
+        const identityError = 'databaseName must be a non-empty string and databaseVersion must be a positive integer';
+
+        // Names must contain non-whitespace text without coercing non-string values.
+        expect(() => db.openCostsDB(123, 1)).toThrow(identityError);
+        expect(() => db.openCostsDB('', 1)).toThrow(identityError);
+        expect(() => db.openCostsDB('   ', 1)).toThrow(identityError);
+
+        // Versions must already be positive integers at the database boundary.
+        expect(() => db.openCostsDB('testdb', '1')).toThrow(identityError);
+        expect(() => db.openCostsDB('testdb', NaN)).toThrow(identityError);
+        expect(() => db.openCostsDB('testdb', Infinity)).toThrow(identityError);
+        expect(() => db.openCostsDB('testdb', 0)).toThrow(identityError);
+        expect(() => db.openCostsDB('testdb', -1)).toThrow(identityError);
+        expect(() => db.openCostsDB('testdb', 1.5)).toThrow(identityError);
+
+        // Surrounding whitespace does not make an otherwise non-empty name invalid.
+        expect(() => db.openCostsDB('  testdb  ', 1)).not.toThrow();
     });
 
     // The returned instance must expose both operations from the clarified DB contract.
