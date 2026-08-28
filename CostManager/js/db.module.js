@@ -28,7 +28,7 @@ function getCostsFromStorage(databaseName) {
                 throw new Error('Stored item is corrupted or missing mandatory fields');
             }
 
-            if (typeof storedCost.sum !== 'number' || !Number.isFinite(storedCost.sum)) {
+            if (typeof storedCost.sum !== 'number' || !Number.isFinite(storedCost.sum) || storedCost.sum <= 0) {
                 throw new Error('Stored item has invalid sum');
             }
 
@@ -37,7 +37,8 @@ function getCostsFromStorage(databaseName) {
                 throw new Error('Stored item has invalid or unsupported currency');
             }
 
-            if (typeof storedCost.category !== 'string' || typeof storedCost.description !== 'string') {
+            if (typeof storedCost.category !== 'string' || storedCost.category.trim() === '' ||
+                typeof storedCost.description !== 'string' || storedCost.description.trim() === '') {
                 throw new Error('Stored item has invalid category or description');
             }
 
@@ -76,18 +77,19 @@ function validateCostInput(cost) {
         throw new Error('Cost must be an object');
     }
 
-    // Non-finite sums cannot be represented reliably after JSON serialization.
-    if (typeof cost.sum !== 'number' || !Number.isFinite(cost.sum)) {
-        throw new Error('Cost sum must be a finite number');
+    // Costs must be positive finite numbers before they reach storage or report totals.
+    if (typeof cost.sum !== 'number' || !Number.isFinite(cost.sum) || cost.sum <= 0) {
+        throw new Error('Cost sum must be a finite number greater than 0');
     }
 
     if (typeof cost.currency !== 'string' || !supportedCurrencies.includes(cost.currency)) {
         throw new Error(`Cost currency must be one of the supported currencies: ${supportedCurrencies.join(', ')}`);
     }
 
-    // Text fields stay strings at the public boundary instead of being coerced silently.
-    if (typeof cost.category !== 'string' || typeof cost.description !== 'string') {
-        throw new Error('Cost category and description must be strings');
+    // Text fields must contain non-whitespace content without being coerced silently.
+    if (typeof cost.category !== 'string' || cost.category.trim() === '' ||
+        typeof cost.description !== 'string' || cost.description.trim() === '') {
+        throw new Error('Cost category and description must be non-empty strings');
     }
 }
 

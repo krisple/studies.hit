@@ -516,8 +516,8 @@
                 });
             });
 
-            // Sum validation rejects non-finite and non-number representations without coercion.
-            await test('addCost attacks', 'Rejects null, missing, string, NaN and infinite sums', async () => {
+            // Sum validation rejects non-positive, non-finite, and non-number values without coercion.
+            await test('addCost attacks', 'Rejects null, missing, non-positive and non-finite sums', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     // Valid text and currency isolate each failure to the numeric sum boundary.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
@@ -534,6 +534,8 @@
                     expectThrow(() => costsDb.addCost({ ...base, sum: NaN }));
                     expectThrow(() => costsDb.addCost({ ...base, sum: Infinity }));
                     expectThrow(() => costsDb.addCost({ ...base, sum: -Infinity }));
+                    expectThrow(() => costsDb.addCost({ ...base, sum: 0 }));
+                    expectThrow(() => costsDb.addCost({ ...base, sum: -15.75 }));
                 });
             });
 
@@ -557,8 +559,8 @@
                 });
             });
 
-            // Text boundaries reject structured or numeric values instead of stringifying them.
-            await test('addCost attacks', 'Rejects non-string category and description', async () => {
+            // Text boundaries reject non-string and blank values instead of coercing them.
+            await test('addCost attacks', 'Rejects non-string or blank category and description', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
 
@@ -575,15 +577,39 @@
                         category: 'ok',
                         description: {}
                     }));
+                    expectThrow(() => costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: '',
+                        description: 'ok'
+                    }));
+                    expectThrow(() => costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: '   ',
+                        description: 'ok'
+                    }));
+                    expectThrow(() => costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: 'ok',
+                        description: ''
+                    }));
+                    expectThrow(() => costsDb.addCost({
+                        sum: 1,
+                        currency: 'USD',
+                        category: 'ok',
+                        description: '   '
+                    }));
                 });
             });
 
-            // Valid finite values include edge cases that must not be normalized away.
-            await test('addCost attacks', 'Accepts and preserves zero, negative and decimal numeric sums', async () => {
+            // Valid positive finite values include decimal edge cases that must not be normalized away.
+            await test('addCost attacks', 'Accepts and preserves positive decimal numeric sums', async () => {
                 await withSandbox({}, async ({ window: sandboxWindow }) => {
-                    // Boundary and precision examples confirm that every finite number remains valid.
+                    // Boundary and precision examples confirm that positive finite numbers remain valid.
                     const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
-                    const values = [0, -15.75, 0.000001, 999999999.125];
+                    const values = [0.000001, 15.75, 999999999.125];
 
                     // Each stored value is checked immediately against its original numeric input.
                     values.forEach((sum, index) => {
@@ -1366,53 +1392,6 @@
                 });
             });
 
-            // A zero-valued record remains visible even though it contributes nothing to total.
-            await test('Mixed totals', 'Adding 0 USD does not poison totals or filtering', async () => {
-                await withSandbox({}, async ({ window: sandboxWindow }) => {
-                    // Zero and non-zero entries distinguish preservation from total contribution.
-                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
-                    costsDb.addCost({
-                        sum: 0,
-                        currency: 'USD',
-                        category: 'Zero',
-                        description: 'zero'
-                    });
-                    costsDb.addCost({
-                        sum: 9,
-                        currency: 'USD',
-                        category: 'Nine',
-                        description: 'nine'
-                    });
-
-                    // Zero remains visible as a cost while leaving the total unchanged.
-                    const report = costsDb.getReport('USD');
-                    assertEqual(report.costs.length, 2, 'Zero-valued cost disappeared');
-                    assertEqual(report.total.sum, 9, 'Zero-valued cost corrupted the total');
-                });
-            });
-
-            // Negative finite values follow the same aggregation rules as every other number.
-            await test('Mixed totals', 'Negative costs participate in totals exactly as numeric values', async () => {
-                await withSandbox({}, async ({ window: sandboxWindow }) => {
-                    // Positive and negative values make subtraction behavior explicit in one report.
-                    const costsDb = sandboxWindow.db.openCostsDB(uniqueDatabaseName(), 1);
-                    costsDb.addCost({
-                        sum: 100,
-                        currency: 'USD',
-                        category: 'Positive',
-                        description: '100'
-                    });
-                    costsDb.addCost({
-                        sum: -40,
-                        currency: 'USD',
-                        category: 'Negative',
-                        description: '-40'
-                    });
-
-                    // The aggregate must follow ordinary numeric addition without clamping.
-                    assertEqual(costsDb.getReport('USD').total.sum, 60, 'Negative numeric cost was mishandled');
-                });
-            });
         }
 
         // Result rendering converts recorded outcomes into the visible table and summary counters.

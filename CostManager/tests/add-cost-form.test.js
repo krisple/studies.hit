@@ -52,6 +52,38 @@ describe('Add Cost form', () => {
         });
     });
 
+    test('buildCostFromForm rejects zero and negative sums', () => {
+        const { costForm } = renderAddCostForm();
+        costForm.elements.currency.value = 'USD';
+        costForm.elements.category.value = 'Food';
+        costForm.elements.description.value = 'Lunch';
+
+        // A cost amount must be strictly positive after conversion from the form string.
+        costForm.elements.sum.value = '0';
+        expect(() => buildCostFromForm(costForm)).toThrow('Enter a cost sum greater than 0');
+        costForm.elements.sum.value = '-5';
+        expect(() => buildCostFromForm(costForm)).toThrow('Enter a cost sum greater than 0');
+    });
+
+    test('buildCostFromForm rejects empty and whitespace-only text fields', () => {
+        const { costForm } = renderAddCostForm();
+        costForm.elements.sum.value = '12';
+        costForm.elements.currency.value = 'USD';
+
+        // Trimming prevents visually blank category and description values from passing.
+        costForm.elements.category.value = '';
+        costForm.elements.description.value = 'Lunch';
+        expect(() => buildCostFromForm(costForm)).toThrow('Enter a category');
+        costForm.elements.category.value = '   ';
+        expect(() => buildCostFromForm(costForm)).toThrow('Enter a category');
+
+        costForm.elements.category.value = 'Food';
+        costForm.elements.description.value = '';
+        expect(() => buildCostFromForm(costForm)).toThrow('Enter a description');
+        costForm.elements.description.value = '   ';
+        expect(() => buildCostFromForm(costForm)).toThrow('Enter a description');
+    });
+
     // This integration case verifies the UI boundary against the real storage implementation.
     test('submitting the form persists the cost and keeps its original currency', () => {
         const { costForm, statusElement } = renderAddCostForm();

@@ -21,8 +21,8 @@ export function buildCostFromForm(costForm) {
 
     // Explicit conversion keeps the numeric type stable at the application boundary.
     const sum = Number(sumText);
-    if (!Number.isFinite(sum)) {
-        throw new Error('Enter a valid cost sum');
+    if (!Number.isFinite(sum) || sum <= 0) {
+        throw new Error('Enter a cost sum greater than 0');
     }
 
     // UI validation mirrors the database currency contract before persistence is attempted.
