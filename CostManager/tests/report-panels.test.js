@@ -19,6 +19,7 @@ function createMonthlyForm(formId) {
         '<option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>',
         '<option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>',
         '</select>',
+        // Build the test fixture required for this scenario.
         '<input name="year" type="number">',
         '<select name="currency"><option value="USD">USD</option><option value="ILS">ILS</option></select>',
         '<button type="submit">Submit</button>'
@@ -70,11 +71,13 @@ describe('report and chart operations', () => {
             emptyElement: document.createElement('div'),
             outputElement: document.createElement('div'),
             ...createDescriptionDialogElements(),
+            // Build the test fixture required for this scenario.
             tableBody: document.createElement('tbody'),
             totalElement: document.createElement('strong')
         };
         // The synchronous DB mock calculates totals from the current shared rate source.
         const costsDb = {
+            // Configure the valid baseline state before exercising the targeted case.
             getReport: jest.fn((currency, year, month) => ({
                 year,
                 month,
@@ -129,6 +132,7 @@ describe('report and chart operations', () => {
             emptyElement: document.createElement('div'),
             outputElement: document.createElement('div'),
             ...createDescriptionDialogElements(),
+            // Build the test fixture required for this scenario.
             tableBody: document.createElement('tbody'),
             totalElement: document.createElement('strong')
         };
@@ -151,6 +155,7 @@ describe('report and chart operations', () => {
             emptyElement: document.createElement('div'),
             outputElement: document.createElement('div'),
             ...createDescriptionDialogElements(),
+            // Build the test fixture required for this scenario.
             tableBody: document.createElement('tbody'),
             totalElement: document.createElement('strong')
         };
@@ -158,6 +163,7 @@ describe('report and chart operations', () => {
         const longDescription = 'A deliberately long cost description '.repeat(5).trim();
         // Identity currency keeps this test focused entirely on report presentation.
         const costsDb = {
+            // Configure the valid baseline state before exercising the targeted case.
             getReport: jest.fn((currency, year, month) => ({
                 year,
                 month,
@@ -166,6 +172,7 @@ describe('report and chart operations', () => {
             }))
         };
 
+        // Execute the operation under the configured test conditions.
         initializeDetailedReportPanel(reportElements, costsDb);
         form.elements.month.value = '5';
         form.elements.year.value = '2026';
@@ -190,6 +197,7 @@ describe('report and chart operations', () => {
         const chartRenderer = { render: jest.fn(), clear: jest.fn() };
         // Two matching categories must collapse into one converted slice.
         const costsDb = {
+            // Configure the valid baseline state before exercising the targeted case.
             getReport: jest.fn(() => ({
                 costs: [
                     { sum: 40, currency: 'ILS', category: 'Food' },

@@ -60,6 +60,7 @@ describe('standalone Vanilla db.js', () => {
         expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
+    // Configure the standalone browser environment before evaluating db.js.
     test('rejects non-positive sums and blank text fields', () => {
         global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => rates });
         window.fetch = global.fetch;
@@ -75,6 +76,7 @@ describe('standalone Vanilla db.js', () => {
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'Food', description: '   ' })).toThrow('Cost category and description must be non-empty strings');
     });
 
+    // Configure the standalone browser environment before evaluating db.js.
     test('rejects blank database names and non-positive or non-integer versions', () => {
         global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => rates });
         window.fetch = global.fetch;

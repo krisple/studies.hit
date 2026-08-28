@@ -8,17 +8,20 @@
 <body>
     <script src="vanilla/db.js"></script>
     <script>
+      // Configure the standalone browser environment before evaluating db.js.
       function test() {
         try{
           const ob = db.openCostsDB("costsdb",1);
           const result1 = ob.addCost({sum:200, currency:"USD", category:"FOOD", description:"pizza"});
           const result2 = ob.addCost({sum:400, currency:"USD", category:"CAR", description:"fuel"});
+          // Verify the standalone API keeps the required public contract.
           if(ob) {
             console.log("creating db succeeded");
           }
           if(result1) {
             console.log("adding 1st cost item succeeded");
           }
+          // Verify the standalone API keeps the required public contract.
           if(result2) {
             console.log("adding 2nd cost item succeeded");
           }

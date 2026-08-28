@@ -8,6 +8,7 @@ import {
     monthLabels
 } from '../js/report-data.js';
 
+// Configure the valid baseline state before exercising the targeted case.
 const rates = { USD: 1, ILS: 4, GBP: 0.5, EURO: 0.8 };
 
 // Report transformations are verified independently from DOM and Chart.js behavior.
@@ -17,6 +18,7 @@ describe('report and chart data transformations', () => {
         const report = {
             year: 2026,
             month: 5,
+            // Build the test fixture required for this scenario.
             costs: [{
                 sum: 80,
                 currency: 'ILS',
@@ -24,6 +26,7 @@ describe('report and chart data transformations', () => {
                 description: 'Groceries',
                 date: { day: 12 }
             }],
+            // Configure the valid baseline state before exercising the targeted case.
             total: { currency: 'USD', sum: 20 }
         };
 
@@ -36,6 +39,7 @@ describe('report and chart data transformations', () => {
             description: 'Groceries',
             originalSum: 80,
             originalCurrency: 'ILS',
+            // Verify the report preserves original cost data while computing the expected total.
             convertedSum: 20,
             targetCurrency: 'USD'
         });

@@ -18,6 +18,7 @@ function renderSettingsForm() {
         '<button type="submit">Save Settings</button>',
         '</form>',
         '<button id="use-default-rates" type="button">Use Default</button>',
+        // Build the test fixture required for this scenario.
         '<p id="settings-status"></p>',
         '<strong id="current-rates-source"></strong>',
         '</section>',
@@ -30,6 +31,7 @@ function renderSettingsForm() {
         defaultButton: document.getElementById('use-default-rates'),
         statusElement: document.getElementById('settings-status'),
         sourceElement: document.getElementById('current-rates-source'),
+        // Build the test fixture required for this scenario.
         outsideButton: document.getElementById('outside-settings')
     };
 }
@@ -85,6 +87,7 @@ describe('exchange-rate settings', () => {
             settingsElements.defaultButton,
             settingsElements.statusElement,
             settingsElements.sourceElement,
+            // Configure the valid baseline state before exercising the targeted case.
             localStorage,
             rateManager,
             onExplicitRatesLoaded
@@ -127,6 +130,7 @@ describe('exchange-rate settings', () => {
             settingsElements.defaultButton,
             settingsElements.statusElement,
             settingsElements.sourceElement,
+            // Configure the valid baseline state before exercising the targeted case.
             localStorage,
             rateManager,
             onExplicitRatesLoaded
@@ -156,6 +160,7 @@ describe('exchange-rate settings', () => {
             settingsElements.defaultButton,
             settingsElements.statusElement,
             settingsElements.sourceElement,
+            // Configure the valid baseline state before exercising the targeted case.
             localStorage,
             rateManager
         );

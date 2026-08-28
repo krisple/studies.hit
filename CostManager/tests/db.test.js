@@ -165,6 +165,7 @@ describe('db.module.js logic', () => {
         localStorage.setItem('costsdb_testdb', '[{"sum":"100", "currency":"USD"}]');
         expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid sum');
 
+        // Prepare isolated storage data for this corruption scenario.
         localStorage.setItem('costsdb_testdb', '[{"sum":0, "currency":"USD"}]');
         expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid sum');
 
@@ -185,6 +186,7 @@ describe('db.module.js logic', () => {
         localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"", "description":"test"}]');
         expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid category or description');
 
+        // Prepare isolated storage data for this corruption scenario.
         localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"   "}]');
         expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid category or description');
     });
@@ -271,6 +273,7 @@ describe('db.module.js logic', () => {
             description: 'past1',
             date: { day: 1, month: 5, year: 2020 }
         };
+        // Prepare isolated storage data for this corruption scenario.
         const storedCosts = JSON.parse(localStorage.getItem('costsdb_testdb'));
         storedCosts.push(pastCost);
         localStorage.setItem('costsdb_testdb', JSON.stringify(storedCosts));
