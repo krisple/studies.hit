@@ -49,6 +49,7 @@ function getCostsFromStorage(databaseName) {
                 storedCost.date.month < 1 || storedCost.date.month > 12 ||
                 typeof storedCost.date.day !== 'number' || !Number.isInteger(storedCost.date.day) ||
                 storedCost.date.day < 1 || storedCost.date.day > 31) {
+                // Invalid stored dates are treated as corrupted database content.
                 throw new Error('Stored item is missing a valid date structure');
             }
         });

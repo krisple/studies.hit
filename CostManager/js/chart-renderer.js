@@ -89,6 +89,7 @@ function createPieConfiguration(chartData, currency) {
                 }
             }
         }
+        // Return the completed configuration without changing the source chart data.
     };
 }
 
@@ -127,6 +128,7 @@ function createBarConfiguration(chartData, currency) {
                 }
             }
         }
+        // Return the completed configuration without changing the source chart data.
     };
 }
 
