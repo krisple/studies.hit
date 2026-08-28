@@ -8,7 +8,7 @@ function validateApplicationConfig(config) {
 
     // Database settings must satisfy the same boundary used by openCostsDB.
     if (typeof config.databaseName !== 'string' || config.databaseName.trim() === '' ||
-        typeof config.databaseVersion !== 'number' || !Number.isFinite(config.databaseVersion)) {
+        !Number.isInteger(config.databaseVersion) || config.databaseVersion <= 0) {
         throw new Error('Application config contains invalid database settings');
     }
 
