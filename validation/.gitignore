@@ -19,3 +19,6 @@ Thumbs.db
 *.temp
 *.swp
 *~
+
+# Local test libraries
+lib/
