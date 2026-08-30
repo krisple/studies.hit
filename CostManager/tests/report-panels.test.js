@@ -92,11 +92,13 @@ describe('report and chart operations', () => {
         form.elements.year.value = '2026';
         form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
-        // Report calls use only currency, year, and month while rows use manager rates.
+        // Report calls use only currency, year, and month while rows retain original values.
         expect(costsDb.getReport).toHaveBeenLastCalledWith('USD', 2026, 5);
         expect(reportElements.tableBody.textContent).toContain('2026-05-08');
+        expect(reportElements.tableBody.querySelector('tr').children).toHaveLength(4);
         expect(reportElements.tableBody.textContent).toContain('40.00 ILS');
-        expect(reportElements.tableBody.textContent).toContain('10.00 USD');
+        expect(reportElements.tableBody.textContent).not.toContain('10.00 USD');
+        // The aggregate remains the only value displayed in the requested currency.
         expect(reportElements.totalElement.textContent).toBe('10.00 USD');
         expect(reportElements.statusElement.textContent).toBe('');
         expect(reportElements.statusElement.dataset.state).toBeUndefined();
@@ -104,20 +106,23 @@ describe('report and chart operations', () => {
         // A manager refresh alone must not mutate the report already rendered in the DOM.
         global.fetch.mockResolvedValueOnce({ ok: true, json: async () => secondRates });
         await exchangeRateManager.setRatesUrl('https://example.com/new-rates.json');
-        expect(reportElements.tableBody.textContent).toContain('10.00 USD');
+        expect(reportElements.tableBody.textContent).toContain('40.00 ILS');
+        expect(reportElements.tableBody.textContent).not.toContain('10.00 USD');
         expect(reportElements.totalElement.textContent).toBe('10.00 USD');
         expect(costsDb.getReport).toHaveBeenCalledTimes(1);
 
         // An explicit Settings callback refreshes the displayed report with active rates.
         detailedReportPanel.refreshIfDisplayed();
         expect(costsDb.getReport).toHaveBeenCalledTimes(2);
-        expect(reportElements.tableBody.textContent).toContain('8.00 USD');
+        expect(reportElements.tableBody.textContent).toContain('40.00 ILS');
+        expect(reportElements.tableBody.textContent).not.toContain('8.00 USD');
         expect(reportElements.totalElement.textContent).toBe('8.00 USD');
 
         // A later submission reuses the same snapshot without starting another Fetch.
         form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         expect(costsDb.getReport).toHaveBeenCalledTimes(3);
-        expect(reportElements.tableBody.textContent).toContain('8.00 USD');
+        expect(reportElements.tableBody.textContent).toContain('40.00 ILS');
+        expect(reportElements.tableBody.textContent).not.toContain('8.00 USD');
         expect(reportElements.totalElement.textContent).toBe('8.00 USD');
         expect(global.fetch).toHaveBeenCalledTimes(2);
     });

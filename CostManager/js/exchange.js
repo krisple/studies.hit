@@ -38,7 +38,9 @@ export function convertCurrency(amount, fromCurrency, toCurrency, rates) {
 
     // We must abort conversion if the required exchange rates object is absent or invalid.
     if (!rates || typeof rates !== 'object') {
-        throw new Error(`Exchange rates are missing or invalid for requested currencies: ${fromCurrency} to ${toCurrency}`);
+        throw new Error(
+            `Exchange rates are missing or invalid for requested currencies: ${fromCurrency} to ${toCurrency}`
+        );
     }
 
     // Validate the required source and target rates dynamically before using them.
@@ -48,7 +50,9 @@ export function convertCurrency(amount, fromCurrency, toCurrency, rates) {
     // We reject non-numeric, non-finite, zero, or negative rates to prevent corrupt math.
     if (typeof fromRate !== 'number' || !Number.isFinite(fromRate) || fromRate <= 0 ||
         typeof toRate !== 'number' || !Number.isFinite(toRate) || toRate <= 0) {
-        throw new Error(`Exchange rates are missing or invalid for requested currencies: ${fromCurrency} to ${toCurrency}`);
+        throw new Error(
+            `Exchange rates are missing or invalid for requested currencies: ${fromCurrency} to ${toCurrency}`
+        );
     }
 
     // Convert source amount to base currency (USD) then multiply by target rate.

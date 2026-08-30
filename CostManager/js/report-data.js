@@ -6,12 +6,10 @@ export const monthLabels = [
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-// Detailed rows add converted display amounts without changing report-owned values.
-export function buildDetailedReportView(report, targetCurrency, rates) {
+// Detailed rows preserve the exact amounts and currencies returned by the database report.
+export function buildDetailedReportView(report) {
     const rows = report.costs.map((cost) => {
-        const convertedSum = convertCurrency(cost.sum, cost.currency, targetCurrency, rates);
-
-        // Rows combine the report-level period with stored and display-only values.
+        // Rows combine the report-level period with the original cost values.
         return {
             date: {
                 year: report.year,
@@ -22,12 +20,8 @@ export function buildDetailedReportView(report, targetCurrency, rates) {
             // Stored values remain unchanged in the detailed report view.
             category: cost.category,
             description: cost.description,
-            originalSum: cost.sum,
-            originalCurrency: cost.currency,
-
-            // Conversion fields are display-only and are never persisted.
-            convertedSum,
-            targetCurrency
+            sum: cost.sum,
+            currency: cost.currency
         };
     });
 

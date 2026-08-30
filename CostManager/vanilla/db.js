@@ -90,7 +90,8 @@
 
                 // Stored dates include the full period even though reports expose only the day.
                 // Broad day bounds reject corrupted storage before period filtering.
-                if (!storedCost.date || typeof storedCost.date.year !== 'number' || !Number.isInteger(storedCost.date.year) ||
+                if (!storedCost.date || typeof storedCost.date.year !== 'number' ||
+                    !Number.isInteger(storedCost.date.year) ||
                     typeof storedCost.date.month !== 'number' || !Number.isInteger(storedCost.date.month) ||
                     storedCost.date.month < 1 || storedCost.date.month > 12 ||
                     typeof storedCost.date.day !== 'number' || !Number.isInteger(storedCost.date.day) ||
@@ -223,7 +224,9 @@
 
         // The caller supplies the retained in-memory snapshot only when conversion is needed.
         if (!rates || typeof rates !== 'object') {
-            throw new Error(`Exchange rates are missing or invalid for requested currencies: ${fromCurrency} to ${toCurrency}`);
+            throw new Error(
+                `Exchange rates are missing or invalid for requested currencies: ${fromCurrency} to ${toCurrency}`
+            );
         }
 
         const fromRate = rates[fromCurrency];
@@ -232,7 +235,9 @@
         // Both sides must be positive finite rates before the normalized calculation is safe.
         if (typeof fromRate !== 'number' || !Number.isFinite(fromRate) || fromRate <= 0 ||
             typeof toRate !== 'number' || !Number.isFinite(toRate) || toRate <= 0) {
-            throw new Error(`Exchange rates are missing or invalid for requested currencies: ${fromCurrency} to ${toCurrency}`);
+            throw new Error(
+                `Exchange rates are missing or invalid for requested currencies: ${fromCurrency} to ${toCurrency}`
+            );
         }
 
         // USD normalization avoids maintaining a separate conversion formula per pair.
@@ -271,7 +276,9 @@
         function getReport(currency, year, month) {
             // The original three-argument report contract remains fully synchronous.
             if (typeof currency !== 'string' || !supportedCurrencies.includes(currency)) {
-                throw new Error(`Report currency must be one of the supported currencies: ${supportedCurrencies.join(', ')}`);
+                throw new Error(
+                    `Report currency must be one of the supported currencies: ${supportedCurrencies.join(', ')}`
+                );
             }
 
             const { targetYear, targetMonth } = resolveTargetPeriod(year, month);

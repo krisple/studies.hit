@@ -85,8 +85,10 @@ describe('db.module.js logic', () => {
         const costsDb = db.openCostsDB('testdb', 1);
 
         // Both zero and negative finite values violate the strictly positive sum contract.
-        expect(() => costsDb.addCost({ sum: 0, currency: 'USD', category: 'FOOD', description: 'pizza' })).toThrow('Cost sum must be a finite number greater than 0');
-        expect(() => costsDb.addCost({ sum: -15, currency: 'USD', category: 'FOOD', description: 'pizza' })).toThrow('Cost sum must be a finite number greater than 0');
+        expect(() => costsDb.addCost({ sum: 0, currency: 'USD', category: 'FOOD', description: 'pizza' }))
+            .toThrow('Cost sum must be a finite number greater than 0');
+        expect(() => costsDb.addCost({ sum: -15, currency: 'USD', category: 'FOOD', description: 'pizza' }))
+            .toThrow('Cost sum must be a finite number greater than 0');
     });
 
     test('addCost rejects invalid cost fields and non-finite sums', () => {
@@ -94,30 +96,41 @@ describe('db.module.js logic', () => {
 
         // Input is validated without silently coercing values into the required types.
         expect(() => costsDb.addCost(null)).toThrow('Cost must be an object');
-        expect(() => costsDb.addCost({ sum: '200', currency: 'USD', category: 'FOOD', description: 'pizza' })).toThrow('Cost sum must be a finite number greater than 0');
-        expect(() => costsDb.addCost({ sum: NaN, currency: 'USD', category: 'FOOD', description: 'pizza' })).toThrow('Cost sum must be a finite number greater than 0');
-        expect(() => costsDb.addCost({ sum: Infinity, currency: 'USD', category: 'FOOD', description: 'pizza' })).toThrow('Cost sum must be a finite number greater than 0');
+        expect(() => costsDb.addCost({ sum: '200', currency: 'USD', category: 'FOOD', description: 'pizza' }))
+            .toThrow('Cost sum must be a finite number greater than 0');
+        expect(() => costsDb.addCost({ sum: NaN, currency: 'USD', category: 'FOOD', description: 'pizza' }))
+            .toThrow('Cost sum must be a finite number greater than 0');
+        expect(() => costsDb.addCost({ sum: Infinity, currency: 'USD', category: 'FOOD', description: 'pizza' }))
+            .toThrow('Cost sum must be a finite number greater than 0');
 
         // Currency and text fields also remain strict at the public boundary.
-        expect(() => costsDb.addCost({ sum: 200, currency: 123, category: 'FOOD', description: 'pizza' })).toThrow('Cost currency must be one of the supported currencies');
-        expect(() => costsDb.addCost({ sum: 200, currency: 'USD', category: 123, description: 'pizza' })).toThrow('Cost category and description must be non-empty strings');
+        expect(() => costsDb.addCost({ sum: 200, currency: 123, category: 'FOOD', description: 'pizza' }))
+            .toThrow('Cost currency must be one of the supported currencies');
+        expect(() => costsDb.addCost({ sum: 200, currency: 'USD', category: 123, description: 'pizza' }))
+            .toThrow('Cost category and description must be non-empty strings');
     });
 
     test('addCost rejects empty and whitespace-only text fields', () => {
         const costsDb = db.openCostsDB('testdb', 1);
 
         // Category and description must each contain content after trimming whitespace.
-        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '', description: 'pizza' })).toThrow('Cost category and description must be non-empty strings');
-        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '   ', description: 'pizza' })).toThrow('Cost category and description must be non-empty strings');
-        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'FOOD', description: '' })).toThrow('Cost category and description must be non-empty strings');
-        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'FOOD', description: '   ' })).toThrow('Cost category and description must be non-empty strings');
+        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '', description: 'pizza' }))
+            .toThrow('Cost category and description must be non-empty strings');
+        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '   ', description: 'pizza' }))
+            .toThrow('Cost category and description must be non-empty strings');
+        // Verify invalid input is rejected without changing valid persisted state.
+        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'FOOD', description: '' }))
+            .toThrow('Cost category and description must be non-empty strings');
+        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'FOOD', description: '   ' }))
+            .toThrow('Cost category and description must be non-empty strings');
     });
 
     test('addCost rejects an unsupported currency', () => {
         const costsDb = db.openCostsDB('testdb', 1);
 
         // Stored currency symbols are limited to the four symbols in the project contract.
-        expect(() => costsDb.addCost({ sum: 200, currency: 'YEN', category: 'FOOD', description: 'pizza' })).toThrow('Cost currency must be one of the supported currencies: USD, ILS, GBP, EURO');
+        expect(() => costsDb.addCost({ sum: 200, currency: 'YEN', category: 'FOOD', description: 'pizza' }))
+            .toThrow('Cost currency must be one of the supported currencies: USD, ILS, GBP, EURO');
     });
 
     test('getReport rejects a missing or unsupported target currency', () => {
@@ -125,17 +138,23 @@ describe('db.module.js logic', () => {
 
         // A valid target symbol is required even when the selected period contains no costs.
         expect(() => costsDb.getReport()).toThrow('Report currency must be one of the supported currencies');
-        expect(() => costsDb.getReport('YEN')).toThrow('Report currency must be one of the supported currencies: USD, ILS, GBP, EURO');
+        expect(() => costsDb.getReport('YEN'))
+            .toThrow('Report currency must be one of the supported currencies: USD, ILS, GBP, EURO');
     });
 
     test('getReport rejects invalid year and month boundaries', () => {
         const costsDb = db.openCostsDB('testdb', 1);
 
         // Period arguments must already be integers, and months use the public 1–12 range.
-        expect(() => costsDb.getReport('USD', '2023', 5)).toThrow('Year must be an integer and month must be between 1 and 12');
-        expect(() => costsDb.getReport('USD', 2023, 13)).toThrow('Year must be an integer and month must be between 1 and 12');
-        expect(() => costsDb.getReport('USD', 2023, 0)).toThrow('Year must be an integer and month must be between 1 and 12');
-        expect(() => costsDb.getReport('USD', 2023.5, 5)).toThrow('Year must be an integer and month must be between 1 and 12');
+        expect(() => costsDb.getReport('USD', '2023', 5))
+            .toThrow('Year must be an integer and month must be between 1 and 12');
+        expect(() => costsDb.getReport('USD', 2023, 13))
+            .toThrow('Year must be an integer and month must be between 1 and 12');
+        // Verify invalid input is rejected without changing valid persisted state.
+        expect(() => costsDb.getReport('USD', 2023, 0))
+            .toThrow('Year must be an integer and month must be between 1 and 12');
+        expect(() => costsDb.getReport('USD', 2023.5, 5))
+            .toThrow('Year must be an integer and month must be between 1 and 12');
     });
 
     // The storage boundary validates the parsed root before inspecting individual costs.
@@ -160,7 +179,8 @@ describe('db.module.js logic', () => {
 
         // Each assignment isolates a different mandatory storage-field violation.
         localStorage.setItem('costsdb_testdb', '[{"sum":200}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid or unsupported currency');
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item has invalid or unsupported currency');
 
         localStorage.setItem('costsdb_testdb', '[{"sum":"100", "currency":"USD"}]');
         expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid sum');
@@ -174,48 +194,91 @@ describe('db.module.js logic', () => {
 
         // Unsupported persisted currencies cannot be converted safely in reports.
         localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"YEN"}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid or unsupported currency');
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item has invalid or unsupported currency');
 
         localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":123, "description":"test"}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid category or description');
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item has invalid category or description');
 
         // Text fields must retain their original string structure after persistence.
         localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"FOOD", "description":123}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid category or description');
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item has invalid category or description');
 
         localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"", "description":"test"}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid category or description');
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item has invalid category or description');
 
         // Prepare isolated storage data for this corruption scenario.
-        localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"   "}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid category or description');
+        localStorage.setItem(
+            'costsdb_testdb',
+            '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"   "}]'
+        );
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item has invalid category or description');
     });
 
+    // Date corruption scenarios isolate each mandatory component and calendar bound.
     test('getReport rejects stored costs with an invalid date structure', () => {
         const costsDb = db.openCostsDB('testdb', 1);
 
         // Reports cannot filter a stored item that has no complete insertion date.
-        localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza"}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item is missing a valid date structure');
+        localStorage.setItem(
+            'costsdb_testdb',
+            '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza"}]'
+        );
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item is missing a valid date structure');
 
-        localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", "date":{"month":5, "year":2020}}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item is missing a valid date structure'); // Missing day.
+        // A date without a day is incomplete database content.
+        localStorage.setItem(
+            'costsdb_testdb',
+            '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", ' +
+                '"date":{"month":5, "year":2020}}]'
+        );
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item is missing a valid date structure');
 
-        localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", "date":{"day":"1", "month":5, "year":2020}}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item is missing a valid date structure'); // Day is not numeric.
+        // A string day must not pass numeric date validation.
+        localStorage.setItem(
+            'costsdb_testdb',
+            '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", ' +
+                '"date":{"day":"1", "month":5, "year":2020}}]'
+        );
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item is missing a valid date structure');
 
         // Calendar bounds use the same 1-based month convention as getReport.
-        localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", "date":{"day":1, "month":13, "year":2020}}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item is missing a valid date structure');
+        localStorage.setItem(
+            'costsdb_testdb',
+            '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", ' +
+                '"date":{"day":1, "month":13, "year":2020}}]'
+        );
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item is missing a valid date structure');
 
-        localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", "date":{"day":0, "month":12, "year":2020}}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item is missing a valid date structure');
+        // A zero day falls outside the public one-based calendar range.
+        localStorage.setItem(
+            'costsdb_testdb',
+            '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", ' +
+                '"date":{"day":0, "month":12, "year":2020}}]'
+        );
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item is missing a valid date structure');
 
         // Day validation rejects values outside the broad calendar boundary of 1–31.
-        localStorage.setItem('costsdb_testdb', '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", "date":{"day":32, "month":12, "year":2020}}]');
-        expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item is missing a valid date structure');
+        localStorage.setItem(
+            'costsdb_testdb',
+            '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"pizza", ' +
+                '"date":{"day":32, "month":12, "year":2020}}]'
+        );
+        // The upper day overflow surfaces through the same public storage error.
+        expect(() => costsDb.getReport('USD'))
+            .toThrow('Failed to load costs database: Stored item is missing a valid date structure');
     });
 
+    // Default-period coverage verifies omitted arguments against the current calendar.
     test('getReport defaults omitted dates and returns the required report contract', () => {
         const costsDb = db.openCostsDB('testdb', 1);
         costsDb.addCost({ sum: 300, currency: 'USD', category: 'CAR', description: 'fuel' });

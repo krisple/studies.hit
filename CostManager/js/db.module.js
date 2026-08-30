@@ -44,7 +44,8 @@ function getCostsFromStorage(databaseName) {
 
             // Stored dates include the full period even though reports expose only the day.
             // Broad day bounds reject corrupted storage before period filtering.
-            if (!storedCost.date || typeof storedCost.date.year !== 'number' || !Number.isInteger(storedCost.date.year) ||
+            if (!storedCost.date || typeof storedCost.date.year !== 'number' ||
+                !Number.isInteger(storedCost.date.year) ||
                 typeof storedCost.date.month !== 'number' || !Number.isInteger(storedCost.date.month) ||
                 storedCost.date.month < 1 || storedCost.date.month > 12 ||
                 typeof storedCost.date.day !== 'number' || !Number.isInteger(storedCost.date.day) ||
@@ -198,7 +199,9 @@ function openCostsDB(databaseName, databaseVersion) {
     function getReport(currency, year, month) {
         // The original three-argument report contract remains fully synchronous.
         if (typeof currency !== 'string' || !supportedCurrencies.includes(currency)) {
-            throw new Error(`Report currency must be one of the supported currencies: ${supportedCurrencies.join(', ')}`);
+            throw new Error(
+                `Report currency must be one of the supported currencies: ${supportedCurrencies.join(', ')}`
+            );
         }
 
         const { targetYear, targetMonth } = resolveTargetPeriod(year, month);

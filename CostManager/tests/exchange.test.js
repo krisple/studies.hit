@@ -48,13 +48,18 @@ describe('exchange.js logic', () => {
         expect(() => convertCurrency(100, 'USD', 'ILS', null)).toThrow('Exchange rates are missing or invalid');
 
         // Rates must be positive because zero or negative divisors invalidate normalization.
-        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: -1 })).toThrow('Exchange rates are missing or invalid');
-        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: 0 })).toThrow('Exchange rates are missing or invalid');
+        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: -1 }))
+            .toThrow('Exchange rates are missing or invalid');
+        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: 0 }))
+            .toThrow('Exchange rates are missing or invalid');
 
         // Non-finite and non-numeric values are rejected before conversion arithmetic.
-        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: NaN })).toThrow('Exchange rates are missing or invalid');
-        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: Infinity })).toThrow('Exchange rates are missing or invalid');
-        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: '3.4' })).toThrow('Exchange rates are missing or invalid');
+        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: NaN }))
+            .toThrow('Exchange rates are missing or invalid');
+        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: Infinity }))
+            .toThrow('Exchange rates are missing or invalid');
+        expect(() => convertCurrency(100, 'USD', 'ILS', { USD: 1, ILS: '3.4' }))
+            .toThrow('Exchange rates are missing or invalid');
     });
 
     // Omitting the source selects the local default without storing that choice in the module.

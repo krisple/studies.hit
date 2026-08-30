@@ -1,6 +1,5 @@
 import { readMonthlySelection, setDefaultPeriodSelection } from './period-selection.js';
 import { buildDetailedReportView } from './report-data.js';
-import { exchangeRateManager } from './exchange-rate-manager.js';
 
 const descriptionPreviewLimit = 80;
 
@@ -118,16 +117,15 @@ function initializeDescriptionDialog(reportElements) {
     return showFullDescription;
 }
 
-// Each view row shows both immutable stored values and its display-only conversion.
+// Each view row shows the immutable amount and currency returned by the database report.
 function createReportRow(reportRow, showFullDescription) {
     const tableRow = document.createElement('tr');
-    // Original and converted columns make the non-mutating conversion explicit to users.
+    // The single amount column preserves the original currency for every cost.
     tableRow.append(
         createReportCell(formatReportDate(reportRow.date)),
         createDescriptionCell(reportRow.description, showFullDescription),
         createReportCell(reportRow.category),
-        createReportCell(`${formatAmount(reportRow.originalSum)} ${reportRow.originalCurrency}`),
-        createReportCell(`${formatAmount(reportRow.convertedSum)} ${reportRow.targetCurrency}`)
+        createReportCell(`${formatAmount(reportRow.sum)} ${reportRow.currency}`)
     );
 
     // Returning the assembled row keeps row construction separate from table insertion.
@@ -168,11 +166,7 @@ export function initializeDetailedReportPanel(reportElements, costsDb) {
         try {
             const selection = readMonthlySelection(reportElements.form);
             const report = costsDb.getReport(selection.currency, selection.year, selection.month);
-            const hasCurrencyConversion = report.costs.some((cost) => cost.currency !== selection.currency);
-
-            // Identity-only reports remain available before the initial rate load completes.
-            const rates = hasCurrencyConversion ? exchangeRateManager.getRates() : null;
-            const reportView = buildDetailedReportView(report, selection.currency, rates);
+            const reportView = buildDetailedReportView(report);
             renderDetailedReport(reportView, reportElements, showFullDescription);
             // Successful rendering needs no extra status message beside the visible report.
             reportElements.statusElement.textContent = '';

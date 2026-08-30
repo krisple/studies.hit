@@ -72,7 +72,12 @@ export function initializeAddCostForm(costForm, statusElement, costsDb, onCostAd
             const formattedSum = Number(addedCost.sum).toLocaleString('en-US', {
                 maximumFractionDigits: 2
             });
-            showFormStatus(statusElement, `Added ${formattedSum} ${addedCost.currency} to ${addedCost.category}.`, 'success');
+            // Success feedback keeps the stored amount, currency, and category visible.
+            showFormStatus(
+                statusElement,
+                `Added ${formattedSum} ${addedCost.currency} to ${addedCost.category}.`,
+                'success'
+            );
             hasDismissibleSuccess = true;
         } catch (error) {
             // Database and validation failures are presented in the form's live status region.

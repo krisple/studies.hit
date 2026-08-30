@@ -68,12 +68,20 @@ describe('standalone Vanilla db.js', () => {
         const costsDb = window.db.openCostsDB('vanilla-validation', 1);
 
         // The standalone API applies the same strict input contract as the module variant.
-        expect(() => costsDb.addCost({ sum: 0, currency: 'USD', category: 'Food', description: 'Lunch' })).toThrow('Cost sum must be a finite number greater than 0');
-        expect(() => costsDb.addCost({ sum: -5, currency: 'USD', category: 'Food', description: 'Lunch' })).toThrow('Cost sum must be a finite number greater than 0');
-        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '', description: 'Lunch' })).toThrow('Cost category and description must be non-empty strings');
-        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '   ', description: 'Lunch' })).toThrow('Cost category and description must be non-empty strings');
-        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'Food', description: '' })).toThrow('Cost category and description must be non-empty strings');
-        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'Food', description: '   ' })).toThrow('Cost category and description must be non-empty strings');
+        expect(() => costsDb.addCost({ sum: 0, currency: 'USD', category: 'Food', description: 'Lunch' }))
+            .toThrow('Cost sum must be a finite number greater than 0');
+        expect(() => costsDb.addCost({ sum: -5, currency: 'USD', category: 'Food', description: 'Lunch' }))
+            .toThrow('Cost sum must be a finite number greater than 0');
+        // Verify invalid input is rejected without changing valid persisted state.
+        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '', description: 'Lunch' }))
+            .toThrow('Cost category and description must be non-empty strings');
+        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '   ', description: 'Lunch' }))
+            .toThrow('Cost category and description must be non-empty strings');
+        // Verify invalid input is rejected without changing valid persisted state.
+        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'Food', description: '' }))
+            .toThrow('Cost category and description must be non-empty strings');
+        expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'Food', description: '   ' }))
+            .toThrow('Cost category and description must be non-empty strings');
     });
 
     // Configure the standalone browser environment before evaluating db.js.

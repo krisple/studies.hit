@@ -13,7 +13,7 @@ const rates = { USD: 1, ILS: 4, GBP: 0.5, EURO: 0.8 };
 
 // Report transformations are verified independently from DOM and Chart.js behavior.
 describe('report and chart data transformations', () => {
-    test('detailed report rows convert display amounts and preserve original cost values', () => {
+    test('detailed report rows preserve original cost amounts and currencies', () => {
         // Report metadata combines with the public item day while descriptive fields pass through.
         const report = {
             year: 2026,
@@ -30,20 +30,19 @@ describe('report and chart data transformations', () => {
             total: { currency: 'USD', sum: 20 }
         };
 
-        const reportView = buildDetailedReportView(report, 'USD', rates);
+        const reportView = buildDetailedReportView(report);
 
-        // Display conversion is added to the expected view while the report remains unchanged.
+        // The view receives the original row values while retaining the converted report total.
         expect(reportView.rows[0]).toEqual({
             date: { year: 2026, month: 5, day: 12 },
             category: 'Food',
             description: 'Groceries',
-            originalSum: 80,
-            originalCurrency: 'ILS',
-            // Verify the report preserves original cost data while computing the expected total.
-            convertedSum: 20,
-            targetCurrency: 'USD'
+            sum: 80,
+            currency: 'ILS'
         });
+        // Report-level total metadata remains exactly as returned by the database.
         expect(reportView.total).toBe(20);
+        expect(reportView.currency).toBe('USD');
         expect(report.costs[0].sum).toBe(80);
         expect(report.costs[0].currency).toBe('ILS');
     });
