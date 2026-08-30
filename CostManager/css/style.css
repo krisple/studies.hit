@@ -557,9 +557,8 @@ textarea:focus {
     width: 18%;
 }
 
-.report-table th:nth-child(4),
-.report-table th:nth-child(5) {
-    width: 16%;
+.report-table th:nth-child(4) {
+    width: 32%;
 }
 
 .report-table th,

@@ -12,14 +12,14 @@ function renderAddCostForm() {
         '<option value="USD">USD</option>',
         '<option value="ILS">ILS</option>',
         '<option value="GBP">GBP</option>',
-        // Build the test fixture required for this scenario.
+        // The EURO option completes coverage of all supported currencies.
         '<option value="EURO">EURO</option>',
         '</select>',
         '<input name="category" type="text">',
         '<textarea name="description"></textarea>',
         '<button type="submit">Add Cost</button>',
         '</form>',
-        // Build the test fixture required for this scenario.
+        // The live status node mirrors the production feedback target.
         '<p id="add-cost-status"></p>'
     ].join('');
 
@@ -54,7 +54,7 @@ describe('Add Cost form', () => {
         });
     });
 
-    // Configure the valid baseline state before exercising the targeted case.
+    // Positive-sum validation is checked independently from currency and text validation.
     test('buildCostFromForm rejects zero and negative sums', () => {
         const { costForm } = renderAddCostForm();
         costForm.elements.currency.value = 'USD';
@@ -68,7 +68,7 @@ describe('Add Cost form', () => {
         expect(() => buildCostFromForm(costForm)).toThrow('Enter a cost sum greater than 0');
     });
 
-    // Configure the valid baseline state before exercising the targeted case.
+    // Text validation checks both empty and whitespace-only values after trimming.
     test('buildCostFromForm rejects empty and whitespace-only text fields', () => {
         const { costForm } = renderAddCostForm();
         costForm.elements.sum.value = '12';

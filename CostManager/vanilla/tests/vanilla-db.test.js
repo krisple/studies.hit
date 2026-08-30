@@ -72,12 +72,12 @@ describe('standalone Vanilla db.js', () => {
             .toThrow('Cost sum must be a finite number greater than 0');
         expect(() => costsDb.addCost({ sum: -5, currency: 'USD', category: 'Food', description: 'Lunch' }))
             .toThrow('Cost sum must be a finite number greater than 0');
-        // Verify invalid input is rejected without changing valid persisted state.
+        // Category must contain non-whitespace text.
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '', description: 'Lunch' }))
             .toThrow('Cost category and description must be non-empty strings');
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '   ', description: 'Lunch' }))
             .toThrow('Cost category and description must be non-empty strings');
-        // Verify invalid input is rejected without changing valid persisted state.
+        // Description must contain non-whitespace text.
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'Food', description: '' }))
             .toThrow('Cost category and description must be non-empty strings');
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'Food', description: '   ' }))

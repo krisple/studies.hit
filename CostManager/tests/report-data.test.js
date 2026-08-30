@@ -8,7 +8,7 @@ import {
     monthLabels
 } from '../js/report-data.js';
 
-// Configure the valid baseline state before exercising the targeted case.
+// USD-based rates give mixed-currency transformations deterministic expected values.
 const rates = { USD: 1, ILS: 4, GBP: 0.5, EURO: 0.8 };
 
 // Report transformations are verified independently from DOM and Chart.js behavior.
@@ -18,7 +18,7 @@ describe('report and chart data transformations', () => {
         const report = {
             year: 2026,
             month: 5,
-            // Build the test fixture required for this scenario.
+            // One ILS cost verifies that detailed rows preserve their original amount and currency.
             costs: [{
                 sum: 80,
                 currency: 'ILS',
@@ -26,13 +26,13 @@ describe('report and chart data transformations', () => {
                 description: 'Groceries',
                 date: { day: 12 }
             }],
-            // Configure the valid baseline state before exercising the targeted case.
+            // The report-level total is already expressed in the requested USD currency.
             total: { currency: 'USD', sum: 20 }
         };
 
         const reportView = buildDetailedReportView(report);
 
-        // The view receives the original row values while retaining the converted report total.
+        // The view preserves original row values and reuses the report-level total unchanged.
         expect(reportView.rows[0]).toEqual({
             date: { year: 2026, month: 5, day: 12 },
             category: 'Food',

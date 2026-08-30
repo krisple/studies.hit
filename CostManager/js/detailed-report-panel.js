@@ -162,7 +162,7 @@ export function initializeDetailedReportPanel(reportElements, costsDb) {
     function updateDetailedReport() {
         showReportStatus(reportElements.statusElement, 'Creating report…', 'pending');
 
-        // Rate-dependent work reads the manager snapshot without waiting for the network.
+        // getReport stays synchronous and uses retained rates internally only when conversion is needed.
         try {
             const selection = readMonthlySelection(reportElements.form);
             const report = costsDb.getReport(selection.currency, selection.year, selection.month);

@@ -118,7 +118,7 @@ describe('db.module.js logic', () => {
             .toThrow('Cost category and description must be non-empty strings');
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: '   ', description: 'pizza' }))
             .toThrow('Cost category and description must be non-empty strings');
-        // Verify invalid input is rejected without changing valid persisted state.
+        // Description must also contain non-whitespace text.
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'FOOD', description: '' }))
             .toThrow('Cost category and description must be non-empty strings');
         expect(() => costsDb.addCost({ sum: 10, currency: 'USD', category: 'FOOD', description: '   ' }))
@@ -150,7 +150,7 @@ describe('db.module.js logic', () => {
             .toThrow('Year must be an integer and month must be between 1 and 12');
         expect(() => costsDb.getReport('USD', 2023, 13))
             .toThrow('Year must be an integer and month must be between 1 and 12');
-        // Verify invalid input is rejected without changing valid persisted state.
+        // The lower month bound and non-integer years must also be rejected.
         expect(() => costsDb.getReport('USD', 2023, 0))
             .toThrow('Year must be an integer and month must be between 1 and 12');
         expect(() => costsDb.getReport('USD', 2023.5, 5))
@@ -185,7 +185,7 @@ describe('db.module.js logic', () => {
         localStorage.setItem('costsdb_testdb', '[{"sum":"100", "currency":"USD"}]');
         expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid sum');
 
-        // Prepare isolated storage data for this corruption scenario.
+        // A persisted zero sum is invalid even though it is numeric.
         localStorage.setItem('costsdb_testdb', '[{"sum":0, "currency":"USD"}]');
         expect(() => costsDb.getReport('USD')).toThrow('Failed to load costs database: Stored item has invalid sum');
 
@@ -210,7 +210,7 @@ describe('db.module.js logic', () => {
         expect(() => costsDb.getReport('USD'))
             .toThrow('Failed to load costs database: Stored item has invalid category or description');
 
-        // Prepare isolated storage data for this corruption scenario.
+        // A whitespace-only description is invalid persisted text.
         localStorage.setItem(
             'costsdb_testdb',
             '[{"sum":200, "currency":"USD", "category":"FOOD", "description":"   "}]'

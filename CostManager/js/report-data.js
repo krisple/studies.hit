@@ -25,7 +25,7 @@ export function buildDetailedReportView(report) {
         };
     });
 
-    // The database report already calculated its total from the active retained snapshot.
+    // Reuse the total already calculated by getReport instead of converting row values again.
     return {
         rows,
         total: report.total.sum,
