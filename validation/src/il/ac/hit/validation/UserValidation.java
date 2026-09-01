@@ -184,7 +184,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a combined UserValidation
      * @throws ValidationException if the validation to combine is null
      */
-    public default UserValidation and(UserValidation other) {
+    public default UserValidation and(UserValidation other) throws ValidationException {
         requireNotNull(other, "The validation to combine cannot be null.");
         return user -> {
             requireNotNull(user, "The user cannot be null.");
@@ -204,7 +204,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a combined UserValidation
      * @throws ValidationException if the validation to combine is null
      */
-    public default UserValidation or(UserValidation other) {
+    public default UserValidation or(UserValidation other) throws ValidationException {
         requireNotNull(other, "The validation to combine cannot be null.");
         return user -> {
             requireNotNull(user, "The user cannot be null.");
@@ -229,7 +229,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a combined UserValidation
      * @throws ValidationException if the validation to combine is null
      */
-    public default UserValidation xor(UserValidation other) {
+    public default UserValidation xor(UserValidation other) throws ValidationException {
         requireNotNull(other, "The validation to combine cannot be null.");
         return user -> {
             requireNotNull(user, "The user cannot be null.");
@@ -257,7 +257,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a combined UserValidation
      * @throws ValidationException if the validations array or any element is null
      */
-    public static UserValidation all(UserValidation... validations) {
+    public static UserValidation all(UserValidation... validations) throws ValidationException {
         requireValidationsNotNull(validations);
         return user -> {
             requireNotNull(user, "The user cannot be null.");
@@ -279,7 +279,7 @@ public interface UserValidation extends Function<User, ValidationResult> {
      * @return a combined UserValidation
      * @throws ValidationException if the validations array or any element is null
      */
-    public static UserValidation none(UserValidation... validations) {
+    public static UserValidation none(UserValidation... validations) throws ValidationException {
         requireValidationsNotNull(validations);
         return user -> {
             requireNotNull(user, "The user cannot be null.");

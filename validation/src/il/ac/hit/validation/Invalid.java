@@ -12,10 +12,11 @@ public class Invalid implements ValidationResult {
     /**
      * Constructs a new failed validation result with the given reason.
      *
-     * @param reason the reason for the validation failure, must not be null or empty
-     * @throws ValidationException if the reason is null or empty
+     * @param reason the reason for the validation failure, must not be null or blank
+     * @throws ValidationException if the reason is null or blank
      */
     public Invalid(String reason) {
+        // Centralize validation to ensure every assignment follows the same rules.
         setReason(reason);
     }
 
@@ -24,7 +25,6 @@ public class Invalid implements ValidationResult {
      */
     @Override
     public boolean isValid() {
-        // Expose the failed validation outcome through the shared ValidationResult contract.
         return false;
     }
 
@@ -33,6 +33,7 @@ public class Invalid implements ValidationResult {
      */
     @Override
     public Optional<String> getReason() {
+        // Construction guarantees that every invalid result has a non-null reason.
         return Optional.of(reason);
     }
 
@@ -47,9 +48,9 @@ public class Invalid implements ValidationResult {
     }
 
     private void setReason(String reason) {
-        // Every Invalid result must contain a meaningful failure reason.
+        // Preserve the invariant that an invalid result always has a meaningful reason.
         if (reason == null || reason.trim().isEmpty()) {
-            throw new ValidationException("Invalid reason cannot be null or empty.");
+            throw new ValidationException("Invalid reason cannot be null or blank.");
         }
         this.reason = reason;
     }

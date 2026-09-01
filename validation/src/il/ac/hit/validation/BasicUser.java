@@ -14,7 +14,7 @@ public class BasicUser extends User {
      * @param age      the user's age in years
      */
     public BasicUser(String username, String email, String password, int age) {
-        // Reuse the User initialization path for all shared user state.
+        // Delegate initialization to User to keep shared user state in one place.
         super(username, email, password, age);
     }
 
@@ -25,7 +25,7 @@ public class BasicUser extends User {
      */
     @Override
     public String toString() {
-        // Prefix the base representation with the concrete user type.
+        // Reuse the base representation to keep formatting consistent across user types.
         return "Basic" + super.toString();
     }
 }

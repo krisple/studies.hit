@@ -1,42 +1,48 @@
 package il.ac.hit.validation;
 
 /**
- * Factory class responsible for creating specific instances of User subclasses.
+ * Factory class responsible for creating specific User subclasses.
  */
 public final class UserFactory {
 
-    private UserFactory() {
-        // Prevent instantiation of utility class.
-    }
-
-    /*
-    * This class implements the Factory Method pattern required by the project.
-    * The requested user type selects the concrete User subclass while callers
-    * receive the common User abstraction.
-    */
-
+    /** Type identifier for basic users. */
     private static final String TYPE_BASIC = "basic";
+
+    /** Type identifier for premium users. */
     private static final String TYPE_PREMIUM = "premium";
+
+    /** Type identifier for platinum users. */
     private static final String TYPE_PLATINUM = "platinum";
 
+    /*
+     * The requested user type determines the concrete User subclass,
+     * while callers receive the common User abstraction.
+     */
+
+    private UserFactory() {
+        // Prevents instantiation because this class exposes static factory behavior only.
+    }
+
     /**
-     * Creates a specific User instance based on the provided user type string.
+     * Creates a specific User instance based on the provided user type.
      *
-     * @param type     the type of the user to create ("basic", "premium", "platinum")
+     * @param type the type of user to create ("basic", "premium", or "platinum")
      * @param username the primary identifier for the user
-     * @param email    the user's email address
+     * @param email the user's email address
      * @param password the secret credential used for authentication
-     * @param age      the user's age in years
-     * @return a specific subclass of User corresponding to the type
+     * @param age the user's age in years
+     * @return a User instance corresponding to the specified type
      * @throws ValidationException if the provided type is null or unsupported
      */
-    public static User createUser(String type, String username, String email, String password, int age) {
-        // Validate the required factory selector before choosing a concrete user type.
+    public static User createUser(String type, String username,
+                                  String email, String password, int age) {
+
+        // Reject a missing selector explicitly before choosing a concrete subtype.
         if (type == null) {
             throw new ValidationException("User type cannot be null.");
         }
 
-        // Match only the exact type strings required by the project specification.
+        // Use only the exact selector values defined by the project specification.
         switch (type) {
             case TYPE_BASIC:
                 return new BasicUser(username, email, password, age);

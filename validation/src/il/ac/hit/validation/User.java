@@ -43,7 +43,7 @@ public class User {
      * @param username the new primary identifier
      */
     public void setUsername(String username) {
-        // Store the value as-is; validation is intentionally handled by UserValidation.
+        // Store the username value as-is; validation is intentionally handled by UserValidation.
         this.username = username;
     }
 
@@ -62,7 +62,7 @@ public class User {
      * @param email the new email address
      */
     public void setEmail(String email) {
-        // Store the value as-is; validation is intentionally handled by UserValidation.
+        // Store the email value as-is; validation is intentionally handled by UserValidation.
         this.email = email;
     }
 
@@ -81,7 +81,7 @@ public class User {
      * @param password the new password
      */
     public void setPassword(String password) {
-        // Store the value as-is; validation is intentionally handled by UserValidation.
+        // Store the password value as-is; validation is intentionally handled by UserValidation.
         this.password = password;
     }
 
@@ -100,7 +100,7 @@ public class User {
      * @param age the new age in years
      */
     public void setAge(int age) {
-        // Store the value as-is; validation is intentionally handled by UserValidation.
+        // Store the age value as-is; validation is intentionally handled by UserValidation.
         this.age = age;
     }
 

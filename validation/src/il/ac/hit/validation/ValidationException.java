@@ -34,6 +34,7 @@ public class ValidationException extends RuntimeException {
      */
     @Override
     public String toString() {
+        // Keep the representation concise because the stack trace preserves the cause chain.
         return "ValidationException{message='" + getMessage() + "'}";
     }
 }
